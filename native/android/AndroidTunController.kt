@@ -4,6 +4,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.net.ProxyInfo
+import java.net.InetAddress
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.TunOptions
 import io.nekohasekai.libbox.RoutePrefix
@@ -44,7 +45,9 @@ internal class AndroidTunController(
 
         if (options.autoRoute) {
             if (options.dnsMode.value != Libbox.DNSModeDisabled) {
-                options.dnsServerAddress.toList().forEach(builder::addDnsServer)
+                options.dnsServerAddress.toList().forEach { dns ->
+                    builder.addDnsServer(InetAddress.getByName(dns))
+                }
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -113,7 +116,7 @@ internal class AndroidTunController(
     @Synchronized
     fun isEstablished(): Boolean = descriptor != null
 
-    private fun <T> io.nekohasekai.libbox.StringIterator.toList(): List<String> {
+    private fun io.nekohasekai.libbox.StringIterator.toList(): List<String> {
         val result = mutableListOf<String>()
         while (hasNext()) result += next()
         return result
