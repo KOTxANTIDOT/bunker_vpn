@@ -92,7 +92,7 @@ internal class AndroidTunController(
         if (options.isHTTPProxyEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             builder.setHttpProxy(
                 ProxyInfo.buildDirectProxy(
-                    options.httpProxyServer,
+                    InetAddress.getByName(options.httpProxyServer),
                     options.httpProxyServerPort,
                     options.httpProxyBypassDomain.toList(),
                 )
