@@ -133,19 +133,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            _InfoTile(
+            const _InfoTile(
               icon: Icons.hub_outlined,
               title: 'Сетевой движок',
               value: 'sing-box · подготовка',
             ),
             const SizedBox(height: 10),
-            _InfoTile(
+            const _InfoTile(
               icon: Icons.route_outlined,
               title: 'Маршрутизация',
               value: 'Ещё не активна',
             ),
             const SizedBox(height: 10),
-            _InfoTile(
+            const _InfoTile(
               icon: Icons.security_outlined,
               title: 'Защита',
               value: 'VPN не запущен',
