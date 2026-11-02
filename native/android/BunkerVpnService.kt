@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
+import io.nekohasekai.libbox.TunOptions
 
 /**
  * Owns the Android VPN service lifecycle.
@@ -17,6 +18,14 @@ import android.os.IBinder
  * This milestone does not route or protect network traffic.
  */
 class BunkerVpnService : VpnService() {
+    private val tunController by lazy { AndroidTunController(this) }
+
+    /** Called by the libbox PlatformInterface adapter when a profile requests TUN. */
+    internal fun establishTun(options: TunOptions): Int = tunController.establish(options)
+
+    /** Must be called only after libbox has stopped using the TUN descriptor. */
+    internal fun closeTun() = tunController.close()
+
     companion object {
         const val ACTION_START = "com.bunkercat.bunker_vpn.action.START"
         const val ACTION_STOP = "com.bunkercat.bunker_vpn.action.STOP"
@@ -75,6 +84,7 @@ class BunkerVpnService : VpnService() {
 
     override fun onDestroy() {
         currentState = "STOPPED"
+        runCatching { closeTun() }
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
