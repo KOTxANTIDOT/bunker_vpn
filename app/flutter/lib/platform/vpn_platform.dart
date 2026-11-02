@@ -41,6 +41,22 @@ class VpnPlatform {
     return AndroidPlatformInfo.fromMap(result);
   }
 
+  Future<bool> requestVpnPermission() async {
+    return await _channel.invokeMethod<bool>('requestVpnPermission') ?? false;
+  }
+
+  Future<void> startVpnService() async {
+    await _channel.invokeMethod<String>('startVpnService');
+  }
+
+  Future<void> stopVpnService() async {
+    await _channel.invokeMethod<String>('stopVpnService');
+  }
+
+  Future<String> getVpnServiceState() async {
+    return await _channel.invokeMethod<String>('getVpnServiceState') ?? 'UNKNOWN';
+  }
+
   Future<String> ping() async {
     final result = await _channel.invokeMethod<String>('ping');
     if (result == null || result.isEmpty) {
