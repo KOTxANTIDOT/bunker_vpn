@@ -12,9 +12,9 @@ import android.os.IBinder
 /**
  * Owns the Android VPN service lifecycle.
  *
- * The TUN interface is intentionally NOT established until the sing-box
- * engine adapter is integrated. Starting this shell service does not route
- * or protect network traffic.
+ * Initializes the native libbox runtime. The TUN interface is not established
+ * until a validated profile and the command-server adapter are integrated.
+ * This milestone does not route or protect network traffic.
  */
 class BunkerVpnService : VpnService() {
     companion object {
@@ -52,7 +52,16 @@ class BunkerVpnService : VpnService() {
                 } else {
                     startForeground(NOTIFICATION_ID, notification)
                 }
-                currentState = "SERVICE_READY_NO_ENGINE"
+                try {
+                    LibboxRuntime.initialize(this)
+                    currentState = "ENGINE_INITIALIZED_NO_PROFILE"
+                    updateNotification("Движок загружен · профиль ещё не подключён")
+                } catch (error: Exception) {
+                    currentState = "ENGINE_ERROR"
+                    updateNotification("Ошибка загрузки движка")
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(startId)
+                }
             }
         }
         return START_NOT_STICKY
@@ -87,7 +96,14 @@ class BunkerVpnService : VpnService() {
         }
     }
 
-    private fun buildNotification(): Notification {
+    private fun updateNotification(message: String) {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, buildNotification(message))
+    }
+
+    private fun buildNotification(
+        message: String = "Инициализация сетевого движка…"
+    ): Notification {
         val stopIntent = Intent(this, BunkerVpnService::class.java).apply {
             action = ACTION_STOP
         }
@@ -108,7 +124,7 @@ class BunkerVpnService : VpnService() {
         return builder
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("BUNKER VPN")
-            .setContentText("Сервис готов · сетевой движок ещё не подключён")
+            .setContentText(message)
             .setOngoing(true)
             .addAction(
                 Notification.Action.Builder(
