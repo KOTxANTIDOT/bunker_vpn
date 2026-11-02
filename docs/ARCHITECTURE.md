@@ -50,21 +50,23 @@ A narrow boundary around the selected sing-box integration. It translates valida
 
 Third-party networking engine. It is not BUNKER VPN's own implementation. Pin a reviewed version, preserve its notices, track upstream changes, and document build/release steps. Do not copy code from other VPN clients.
 
-## Repository layout target
+## Repository layout
 
 ```text
-app/flutter/                 Flutter UI and app services
-android/app/                 Kotlin host, VpnService, bridge
+app/flutter/                 Flutter UI, app services and Dart tests
+app/flutter/android/         Generated Android Gradle host (bootstrap output)
+native/android/              Versioned first-party Kotlin bridge/service sources
 core/profiles/               Profile models and import
 core/subscriptions/          Subscription parsing and refresh
 core/routing/                Routing policy and rule evaluation
 core/diagnostics/            Redacted diagnostics
 engine/sing-box/             Pinned engine integration
 docs/                        Project documentation
-test/                        Unit, integration and regression tests
+tool/                        Development and bootstrap scripts
+.github/workflows/           CI workflows
 ```
 
-The exact native source layout may change after the official sing-box Android integration API is verified.
+The exact native source layout may change after the official sing-box Android integration API is verified. Generated Gradle files are created by `tool/bootstrap_android.py`; first-party Kotlin source remains versioned under `native/android/`.
 
 ## Connection lifecycle
 
