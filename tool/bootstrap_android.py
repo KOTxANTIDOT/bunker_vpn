@@ -45,14 +45,14 @@ def patch_manifest() -> None:
         if permission_name not in content:
             content = content.replace(
                 "<application",
-                permission + "\\n    <application",
+                permission + "\n    <application",
                 1,
             )
 
     service_declaration = """        <service
             android:name="com.bunkercat.bunker_vpn.BunkerVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="systemExempted">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
