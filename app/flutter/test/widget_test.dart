@@ -6,7 +6,12 @@ void main() {
     await tester.pumpWidget(const BunkerVpnApp());
 
     expect(find.text('BUNKER VPN'), findsOneWidget);
-    expect(find.text('Бункер пока закрыт'), findsOneWidget);
-    expect(find.text('ПОДКЛЮЧЕНИЕ СКОРО'), findsOneWidget);
+    expect(find.text('Android-основа готова'), findsOneWidget);
+    expect(
+      find.text('ЗАПУСТИТЬ СЛУЖБУ ANDROID'),
+      findsOneWidget,
+    );
+    expect(find.text('VPN не запущен'), findsOneWidget);
+    expect(find.text('sing-box · подготовка'), findsOneWidget);
   });
 }
