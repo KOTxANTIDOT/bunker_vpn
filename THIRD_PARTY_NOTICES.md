@@ -1,9 +1,14 @@
 # Third-party notices
 
-No third-party source code or binary engine is bundled in this repository yet.
+## sing-box Android libbox
 
-Planned initial engine: **sing-box**.
+- Component: Android libbox wrapper for sing-box
+- Artifact: `com.github.singbox-android:libbox:1.14.4`
+- Wrapper source: https://github.com/singbox-android/libbox
+- Engine source: https://github.com/SagerNet/sing-box
+- License: GPL-3.0 (verify the exact release license and bundled notices before distribution)
+- Integration: binary dependency resolved through JitPack; no upstream source is copied into this repository.
 
-Before integration and every release, this file must be updated with the exact upstream version/revision, copyright notices, license identifier, license text location, modifications (if any), and source/build instructions required by the applicable license.
+The upstream libbox project distributes `libbox.aar` as a GitHub Release asset and documents the JitPack dependency coordinate. Preserve the upstream copyright and license notices. Before publishing an APK or source release, include the applicable license text and corresponding-source/build information required by GPL-3.0.
 
-Upstream project: https://github.com/SagerNet/sing-box
+No other third-party native engine binary is currently bundled directly in this repository.
