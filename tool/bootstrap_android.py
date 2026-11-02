@@ -36,15 +36,22 @@ def patch_libbox_dependency() -> None:
 
     settings_content = settings.read_text(encoding="utf-8")
     if "https://jitpack.io" not in settings_content:
-        if settings.suffix == ".kts":
-            repository = '        maven { url = uri("https://jitpack.io") }\\n'
-        else:
-            repository = "        maven { url 'https://jitpack.io' }\\n"
         marker = "dependencyResolutionManagement {"
-        if marker not in settings_content:
+        marker_index = settings_content.find(marker)
+        if marker_index < 0:
             raise RuntimeError("Could not locate dependencyResolutionManagement in Android settings")
-        settings_content = settings_content.replace(
-            "repositories {", "repositories {\\n" + repository, 1
+        repository_block_start = settings_content.find("repositories {", marker_index)
+        if repository_block_start < 0:
+            raise RuntimeError("Could not locate dependency repositories in Android settings")
+        insertion_point = repository_block_start + len("repositories {")
+        if settings.suffix == ".kts":
+            repository = '\n        maven { url = uri("https://jitpack.io") }'
+        else:
+            repository = "\n        maven { url 'https://jitpack.io' }"
+        settings_content = (
+            settings_content[:insertion_point]
+            + repository
+            + settings_content[insertion_point:]
         )
         settings.write_text(settings_content, encoding="utf-8")
 
@@ -60,14 +67,15 @@ def patch_libbox_dependency() -> None:
     dependency = "com.github.singbox-android:libbox:1.14.4"
     if dependency not in app_content:
         if app_gradle.suffix == ".kts":
-            declaration = f'    implementation("{dependency}")\\n'
+            declaration = f'\n    implementation("{dependency}")'
         else:
-            declaration = f"    implementation '{dependency}'\\n"
+            declaration = f"\n    implementation '{dependency}'"
         if "dependencies {" not in app_content:
             raise RuntimeError("Could not locate dependencies block in Android app Gradle file")
-        app_content = app_content.replace("dependencies {", "dependencies {\\n" + declaration, 1)
+        app_content = app_content.replace(
+            "dependencies {", "dependencies {" + declaration, 1
+        )
         app_gradle.write_text(app_content, encoding="utf-8")
-
 
 def patch_manifest() -> None:
     manifest = ANDROID_DIR / "app/src/main/AndroidManifest.xml"
