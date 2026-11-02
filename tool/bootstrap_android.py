@@ -25,62 +25,38 @@ def install_native_sources() -> None:
 
 
 def patch_libbox_dependency() -> None:
-    """Add the pinned upstream Android libbox artifact to the generated host."""
-    settings_candidates = (
-        ANDROID_DIR / "settings.gradle.kts",
-        ANDROID_DIR / "settings.gradle",
+    """Add the pinned upstream Android libbox artifact and its JitPack repository."""
+    project_gradle_candidates = (
+        ANDROID_DIR / "build.gradle.kts",
+        ANDROID_DIR / "build.gradle",
     )
-    settings = next((path for path in settings_candidates if path.is_file()), None)
-    if settings is None:
-        raise FileNotFoundError("Generated Android settings.gradle(.kts) not found")
+    project_gradle = next(
+        (path for path in project_gradle_candidates if path.is_file()), None
+    )
+    if project_gradle is None:
+        raise FileNotFoundError("Generated Android project build.gradle(.kts) not found")
 
-    settings_content = settings.read_text(encoding="utf-8")
-    if "https://jitpack.io" not in settings_content:
-        if "dependencyResolutionManagement {" in settings_content:
-            marker = "dependencyResolutionManagement {"
-            marker_index = settings_content.find(marker)
-            repository_block_start = settings_content.find("repositories {", marker_index)
-            if repository_block_start < 0:
-                raise RuntimeError("Could not locate dependency repositories in Android settings")
-            insertion_point = repository_block_start + len("repositories {")
-            if settings.suffix == ".kts":
-                repository = '\n        maven { url = uri("https://jitpack.io") }'
-            else:
-                repository = "\n        maven { url 'https://jitpack.io' }"
-            settings_content = (
-                settings_content[:insertion_point]
-                + repository
-                + settings_content[insertion_point:]
-            )
+    project_content = project_gradle.read_text(encoding="utf-8")
+    jitpack = "https://jitpack.io"
+    if jitpack not in project_content:
+        marker = "allprojects {"
+        block_start = project_content.find(marker)
+        if block_start < 0:
+            raise RuntimeError("Could not locate allprojects block in Android project Gradle file")
+        repositories_start = project_content.find("repositories {", block_start)
+        if repositories_start < 0:
+            raise RuntimeError("Could not locate allprojects repositories in Android project Gradle file")
+        insertion_point = repositories_start + len("repositories {")
+        if project_gradle.suffix == ".kts":
+            repository = '\\n        maven { url = uri("https://jitpack.io") }'
         else:
-            if settings.suffix == ".kts":
-                repository_block = (
-                    '\ndependencyResolutionManagement {\n'
-                    '    repositories {\n'
-                    '        google()\n'
-                    '        mavenCentral()\n'
-                    '        maven { url = uri("https://jitpack.io") }\n'
-                    '    }\n'
-                    '}\n'
-                )
-            else:
-                repository_block = (
-                    "\ndependencyResolutionManagement {\n"
-                    "    repositories {\n"
-                    "        google()\n"
-                    "        mavenCentral()\n"
-                    "        maven { url 'https://jitpack.io' }\n"
-                    "    }\n"
-                    "}\n"
-                )
-            include_marker = 'include(":app")'
-            if include_marker in settings_content:
-                settings_content = settings_content.replace(
-                    include_marker, repository_block + include_marker, 1
-                )
-            else:
-                settings_content += repository_block
-        settings.write_text(settings_content, encoding="utf-8")
+            repository = "\\n        maven { url 'https://jitpack.io' }"
+        project_content = (
+            project_content[:insertion_point]
+            + repository
+            + project_content[insertion_point:]
+        )
+        project_gradle.write_text(project_content, encoding="utf-8")
 
     app_candidates = (
         ANDROID_DIR / "app/build.gradle.kts",
@@ -91,28 +67,20 @@ def patch_libbox_dependency() -> None:
         raise FileNotFoundError("Generated Android app build.gradle(.kts) not found")
 
     app_content = app_gradle.read_text(encoding="utf-8")
-    dependency = "com.github.singbox-android:libbox:1.14.4"
+    dependency = "com.github.singbox-android:libbox:1.14.3"
     if dependency not in app_content:
         if app_gradle.suffix == ".kts":
-            declaration = f'\n    implementation("{dependency}")'
+            declaration = f'\\n    implementation("{dependency}")'
         else:
-            declaration = f"\n    implementation '{dependency}'"
+            declaration = f"\\n    implementation '{dependency}'"
         if "dependencies {" in app_content:
             app_content = app_content.replace(
                 "dependencies {", "dependencies {" + declaration, 1
             )
         else:
-            # Recent Flutter templates use the plugins DSL and omit a
-            # dependencies block. A top-level Kotlin/Groovy dependencies
-            # block is valid and can be appended safely.
-            if app_gradle.suffix == ".kts":
-                app_content = app_content.rstrip() + (
-                    "\n\ndependencies {" + declaration + "\n}\n"
-                )
-            else:
-                app_content = app_content.rstrip() + (
-                    "\n\ndependencies {" + declaration + "\n}\n"
-                )
+            app_content = app_content.rstrip() + (
+                "\\n\\ndependencies {" + declaration + "\\n}\\n"
+            )
         app_gradle.write_text(app_content, encoding="utf-8")
 
 def patch_manifest() -> None:
