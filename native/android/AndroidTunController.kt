@@ -6,6 +6,8 @@ import android.os.ParcelFileDescriptor
 import android.net.ProxyInfo
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.TunOptions
+import io.nekohasekai.libbox.RoutePrefix
+import io.nekohasekai.libbox.RoutePrefixIterator
 
 /**
  * Owns the Android TUN descriptor returned by VpnService.Builder.establish().
@@ -117,16 +119,13 @@ internal class AndroidTunController(
         return result
     }
 
-    private fun <T> io.nekohasekai.libbox.AddressIterator.toList(): List<T> {
-        val result = mutableListOf<T>()
-        while (hasNext()) {
-            @Suppress("UNCHECKED_CAST")
-            result += next() as T
-        }
+    private fun RoutePrefixIterator.toList(): List<RoutePrefix> {
+        val result = mutableListOf<RoutePrefix>()
+        while (hasNext()) result += next()
         return result
     }
 
-    private fun io.nekohasekai.libbox.Address.toIpPrefix(): android.net.IpPrefix {
+    private fun RoutePrefix.toIpPrefix(): android.net.IpPrefix {
         return android.net.IpPrefix(address(), prefix())
     }
 }
