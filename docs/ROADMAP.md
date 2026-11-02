@@ -8,15 +8,17 @@ Status labels: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`. A milestone is not comp
 - [x] Record product principles and initial architecture.
 - [x] Record security and licensing requirements.
 - [ ] Add source-code license text and complete dependency compatibility audit.
-- [ ] Add contribution and release policies.
+- [x] Add contribution and release-development guidance.
 
 ## M1 — Android application skeleton
 
-- [ ] Create Flutter Android project with pinned Flutter/Dart versions.
-- [ ] Establish app identifier, display name, versioning, and build flavors.
-- [ ] Add Kotlin host and typed Flutter platform channel.
-- [ ] Add CI for formatting, static analysis, and unit tests.
-- [ ] Produce a debug APK only after the skeleton builds cleanly.
+- [x] Add Flutter application source, package manifest, and initial app version.
+- [x] Add Android project bootstrap with application package and display name.
+- [x] Add Kotlin bridge source and typed Flutter platform channel.
+- [x] Add CI workflow for formatting, static analysis, unit tests, and debug APK build.
+- [ ] Pin and verify the supported Flutter/Dart/Android toolchain.
+- [ ] Pass CI and produce a downloadable debug APK.
+- [ ] Verify app launch and bridge round-trip on a real Android device.
 
 Acceptance: app launches on a real Android device; bridge round-trip works; no VPN connection is claimed.
 
