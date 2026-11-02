@@ -15,7 +15,9 @@ ACTIVITY_SOURCE = NATIVE_DIR / "MainActivity.kt"
 
 def main() -> None:
     if not (ROOT / "pubspec.yaml").is_file():
-        raise FileNotFoundError(f"Flutter project manifest not found: {ROOT / 'pubspec.yaml'}")
+        raise FileNotFoundError(
+            f"Flutter project manifest not found: {ROOT / 'pubspec.yaml'}"
+        )
 
     if not ANDROID_DIR.exists():
         subprocess.run(
