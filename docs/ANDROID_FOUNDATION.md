@@ -22,9 +22,18 @@ Methods:
 
 The service currently reports `SERVICE_READY_NO_ENGINE`. It deliberately does **not** call `VpnService.Builder.establish()`, because an unconsumed TUN interface would interrupt network traffic. No traffic is routed or protected at this milestone. The UI and notification explicitly communicate that the engine is not connected.
 
-## Next milestone: sing-box engine
+## sing-box engine dependency (integration stage)
 
-Integrate a pinned, reviewed upstream sing-box `libbox` Android build. Implement the platform callbacks and command server/client boundary, pass the established TUN file descriptor to the engine, and only then report Connected. Service teardown must stop the engine before closing the TUN descriptor.
+The generated Android host now resolves the upstream Android `libbox` artifact through JitPack:
+
+- Artifact: `com.github.singbox-android:libbox:1.14.4`
+- Upstream wrapper: https://github.com/singbox-android/libbox
+- Engine source: https://github.com/SagerNet/sing-box
+- The version is pinned in `tool/bootstrap_android.py`; do not use a floating version.
+
+This milestone only adds the binary dependency. It does **not** start the engine or route traffic yet. The next implementation step is the version-matched Kotlin platform adapter and service lifecycle integration: command server/client, Android `VpnService.Builder.establish()`, TUN file descriptor handoff, engine state callbacks, and ordered shutdown. Connected must remain unavailable until engine startup succeeds and traffic tests pass.
+
+Service teardown must stop the engine first, then close the TUN descriptor and stop the foreground service.
 
 ## Local setup
 
