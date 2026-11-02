@@ -97,11 +97,22 @@ def patch_libbox_dependency() -> None:
             declaration = f'\n    implementation("{dependency}")'
         else:
             declaration = f"\n    implementation '{dependency}'"
-        if "dependencies {" not in app_content:
-            raise RuntimeError("Could not locate dependencies block in Android app Gradle file")
-        app_content = app_content.replace(
-            "dependencies {", "dependencies {" + declaration, 1
-        )
+        if "dependencies {" in app_content:
+            app_content = app_content.replace(
+                "dependencies {", "dependencies {" + declaration, 1
+            )
+        else:
+            # Recent Flutter templates use the plugins DSL and omit a
+            # dependencies block. A top-level Kotlin/Groovy dependencies
+            # block is valid and can be appended safely.
+            if app_gradle.suffix == ".kts":
+                app_content = app_content.rstrip() + (
+                    "\n\ndependencies {" + declaration + "\n}\n"
+                )
+            else:
+                app_content = app_content.rstrip() + (
+                    "\n\ndependencies {" + declaration + "\n}\n"
+                )
         app_gradle.write_text(app_content, encoding="utf-8")
 
 def patch_manifest() -> None:
