@@ -42,7 +42,8 @@ class VpnPlatform {
   }
 
   Future<bool> requestVpnPermission() async {
-    return await _channel.invokeMethod<bool>('requestVpnPermission') ?? false;
+    return await _channel.invokeMethod<bool>('requestVpnPermission') ??
+        false;
   }
 
   Future<void> startVpnService() async {
@@ -54,7 +55,8 @@ class VpnPlatform {
   }
 
   Future<String> getVpnServiceState() async {
-    return await _channel.invokeMethod<String>('getVpnServiceState') ?? 'UNKNOWN';
+    return await _channel.invokeMethod<String>('getVpnServiceState') ??
+        'UNKNOWN';
   }
 
   Future<String> ping() async {
