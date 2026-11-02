@@ -36,23 +36,50 @@ def patch_libbox_dependency() -> None:
 
     settings_content = settings.read_text(encoding="utf-8")
     if "https://jitpack.io" not in settings_content:
-        marker = "dependencyResolutionManagement {"
-        marker_index = settings_content.find(marker)
-        if marker_index < 0:
-            raise RuntimeError("Could not locate dependencyResolutionManagement in Android settings")
-        repository_block_start = settings_content.find("repositories {", marker_index)
-        if repository_block_start < 0:
-            raise RuntimeError("Could not locate dependency repositories in Android settings")
-        insertion_point = repository_block_start + len("repositories {")
-        if settings.suffix == ".kts":
-            repository = '\n        maven { url = uri("https://jitpack.io") }'
+        if "dependencyResolutionManagement {" in settings_content:
+            marker = "dependencyResolutionManagement {"
+            marker_index = settings_content.find(marker)
+            repository_block_start = settings_content.find("repositories {", marker_index)
+            if repository_block_start < 0:
+                raise RuntimeError("Could not locate dependency repositories in Android settings")
+            insertion_point = repository_block_start + len("repositories {")
+            if settings.suffix == ".kts":
+                repository = '\n        maven { url = uri("https://jitpack.io") }'
+            else:
+                repository = "\n        maven { url 'https://jitpack.io' }"
+            settings_content = (
+                settings_content[:insertion_point]
+                + repository
+                + settings_content[insertion_point:]
+            )
         else:
-            repository = "\n        maven { url 'https://jitpack.io' }"
-        settings_content = (
-            settings_content[:insertion_point]
-            + repository
-            + settings_content[insertion_point:]
-        )
+            if settings.suffix == ".kts":
+                repository_block = (
+                    '\ndependencyResolutionManagement {\n'
+                    '    repositories {\n'
+                    '        google()\n'
+                    '        mavenCentral()\n'
+                    '        maven { url = uri("https://jitpack.io") }\n'
+                    '    }\n'
+                    '}\n'
+                )
+            else:
+                repository_block = (
+                    "\ndependencyResolutionManagement {\n"
+                    "    repositories {\n"
+                    "        google()\n"
+                    "        mavenCentral()\n"
+                    "        maven { url 'https://jitpack.io' }\n"
+                    "    }\n"
+                    "}\n"
+                )
+            include_marker = 'include(":app")'
+            if include_marker in settings_content:
+                settings_content = settings_content.replace(
+                    include_marker, repository_block + include_marker, 1
+                )
+            else:
+                settings_content += repository_block
         settings.write_text(settings_content, encoding="utf-8")
 
     app_candidates = (
