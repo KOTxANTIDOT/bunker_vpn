@@ -11,6 +11,12 @@ void main() {
       find.text('ЗАПУСТИТЬ СЛУЖБУ ANDROID'),
       findsOneWidget,
     );
+
+    await tester.scrollUntilVisible(
+      find.text('VPN не запущен'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('VPN не запущен'), findsOneWidget);
     expect(find.text('sing-box · подготовка'), findsOneWidget);
   });
