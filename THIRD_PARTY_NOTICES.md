@@ -3,7 +3,7 @@
 ## sing-box Android libbox
 
 - Component: Android libbox wrapper for sing-box
-- Artifact: `com.github.singbox-android:libbox:1.14.4`
+- Artifact: `com.github.singbox-android:libbox:1.14.3`
 - Wrapper source: https://github.com/singbox-android/libbox
 - Engine source: https://github.com/SagerNet/sing-box
 - License: GPL-3.0 (verify the exact release license and bundled notices before distribution)
