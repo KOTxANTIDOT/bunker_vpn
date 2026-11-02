@@ -31,7 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         setState(() {
           _vpnServiceRunning = false;
-          _bridgeMessage = 'Служба Android остановлена. VPN-трафик не запускался.';
+          _bridgeMessage =
+              'Служба Android остановлена. VPN-трафик не запускался.';
         });
       } else {
         final granted = await _platform.requestVpnPermission();
@@ -173,7 +174,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _changingVpnService ? null : _toggleVpnService,
+                      onPressed: _changingVpnService
+                          ? null
+                          : _toggleVpnService,
                       child: Text(
                         _changingVpnService
                             ? 'ВЫПОЛНЯЮ...'
