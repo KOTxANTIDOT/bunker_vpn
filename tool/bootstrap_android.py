@@ -48,9 +48,9 @@ def patch_libbox_dependency() -> None:
             raise RuntimeError("Could not locate allprojects repositories in Android project Gradle file")
         insertion_point = repositories_start + len("repositories {")
         if project_gradle.suffix == ".kts":
-            repository = '\\n        maven { url = uri("https://jitpack.io") }'
+            repository = '\n        maven { url = uri("https://jitpack.io") }'
         else:
-            repository = "\\n        maven { url 'https://jitpack.io' }"
+            repository = "\n        maven { url 'https://jitpack.io' }"
         project_content = (
             project_content[:insertion_point]
             + repository
@@ -70,16 +70,16 @@ def patch_libbox_dependency() -> None:
     dependency = "com.github.singbox-android:libbox:1.14.3"
     if dependency not in app_content:
         if app_gradle.suffix == ".kts":
-            declaration = f'\\n    implementation("{dependency}")'
+            declaration = f'\n    implementation("{dependency}")'
         else:
-            declaration = f"\\n    implementation '{dependency}'"
+            declaration = f"\n    implementation '{dependency}'"
         if "dependencies {" in app_content:
             app_content = app_content.replace(
                 "dependencies {", "dependencies {" + declaration, 1
             )
         else:
             app_content = app_content.rstrip() + (
-                "\\n\\ndependencies {" + declaration + "\\n}\\n"
+                "\n\ndependencies {" + declaration + "\n}\n"
             )
         app_gradle.write_text(app_content, encoding="utf-8")
 
