@@ -10,7 +10,7 @@ ROOT = REPO_ROOT / "app" / "flutter"
 ANDROID_DIR = ROOT / "android"
 NATIVE_DIR = REPO_ROOT / "native" / "android"
 PACKAGE_PATH = Path("app/src/main/kotlin/com/bunkercat/bunker_vpn")
-NATIVE_SOURCES = ("MainActivity.kt", "BunkerVpnService.kt")
+NATIVE_SOURCES = ("MainActivity.kt", "BunkerVpnService.kt", "LibboxRuntime.kt")
 
 
 def install_native_sources() -> None:
