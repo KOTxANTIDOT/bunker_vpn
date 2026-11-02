@@ -1,0 +1,63 @@
+name: Android CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/android-foundation
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Analyze, test and build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('app/flutter/pubspec.lock') }}
+
+      - name: Generate Android host and install Kotlin bridge
+        working-directory: app/flutter
+        run: python3 ../../tool/bootstrap_android.py
+
+      - name: Install dependencies
+        working-directory: app/flutter
+        run: flutter pub get
+
+      - name: Check formatting
+        working-directory: app/flutter
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        working-directory: app/flutter
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        working-directory: app/flutter
+        run: flutter test
+
+      - name: Build debug APK
+        working-directory: app/flutter
+        run: flutter build apk --debug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bunker-vpn-debug
+          path: app/flutter/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
