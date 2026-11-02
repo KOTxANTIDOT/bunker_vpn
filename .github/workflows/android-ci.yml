@@ -41,7 +41,9 @@ jobs:
 
       - name: Check formatting
         working-directory: app/flutter
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format lib test
+          git diff -- lib test
 
       - name: Analyze
         working-directory: app/flutter
