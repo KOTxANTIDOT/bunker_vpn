@@ -14,7 +14,54 @@ class _HomeScreenState extends State<HomeScreen> {
   final VpnPlatform _platform = VpnPlatform();
 
   bool _checkingBridge = false;
+  bool _vpnServiceRunning = false;
+  bool _changingVpnService = false;
   String? _bridgeMessage;
+
+  Future<void> _toggleVpnService() async {
+    if (_changingVpnService) return;
+    setState(() {
+      _changingVpnService = true;
+      _bridgeMessage = null;
+    });
+
+    try {
+      if (_vpnServiceRunning) {
+        await _platform.stopVpnService();
+        if (!mounted) return;
+        setState(() {
+          _vpnServiceRunning = false;
+          _bridgeMessage = 'Служба Android остановлена. VPN-трафик не запускался.';
+        });
+      } else {
+        final granted = await _platform.requestVpnPermission();
+        if (!granted) {
+          if (!mounted) return;
+          setState(() {
+            _bridgeMessage = 'Разрешение Android VPN не выдано.';
+          });
+          return;
+        }
+        await _platform.startVpnService();
+        if (!mounted) return;
+        setState(() {
+          _vpnServiceRunning = true;
+          _bridgeMessage =
+              'Служба Android запущена. Защита трафика пока не действует: '
+              'sing-box ещё не подключён.';
+        });
+      }
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _bridgeMessage = 'Ошибка VPN-службы: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _changingVpnService = false);
+      }
+    }
+  }
 
   Future<void> _checkBridge() async {
     setState(() {
@@ -104,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 22),
                   const Text(
-                    'Бункер пока закрыт',
+                    'Android-основа готова',
                     style: TextStyle(
                       color: BunkerColors.textPrimary,
                       fontSize: 22,
@@ -113,8 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'VPN-движок ещё не подключён. На следующем этапе добавим '
-                    'реальное соединение через sing-box.',
+                    'Проверим системное VPN-разрешение и запустим служебный '
+                    'компонент. Передача трафика начнётся только после '
+                    'подключения sing-box.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: BunkerColors.textMuted,
@@ -122,11 +170,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const SizedBox(
+                  SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: null,
-                      child: Text('ПОДКЛЮЧЕНИЕ СКОРО'),
+                      onPressed: _changingVpnService ? null : _toggleVpnService,
+                      child: Text(
+                        _changingVpnService
+                            ? 'ВЫПОЛНЯЮ...'
+                            : _vpnServiceRunning
+                                ? 'ОСТАНОВИТЬ СЛУЖБУ'
+                                : 'ЗАПУСТИТЬ СЛУЖБУ ANDROID',
+                      ),
                     ),
                   ),
                 ],
@@ -145,10 +199,12 @@ class _HomeScreenState extends State<HomeScreen> {
               value: 'Ещё не активна',
             ),
             const SizedBox(height: 10),
-            const _InfoTile(
+            _InfoTile(
               icon: Icons.security_outlined,
               title: 'Защита',
-              value: 'VPN не запущен',
+              value: _vpnServiceRunning
+                  ? 'Сервис активен · без туннеля'
+                  : 'VPN не запущен',
             ),
             if (_bridgeMessage != null) ...[
               const SizedBox(height: 18),
