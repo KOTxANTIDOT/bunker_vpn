@@ -31,6 +31,12 @@ Owns screens, navigation, presentation state, profile editing, subscription UX, 
 
 Owns Android-specific permissions, `VpnService`, foreground notification, TUN descriptor lifecycle, process/service lifecycle, and the typed bridge to Flutter. It reports actual engine/service state; the UI must not assume a connection succeeded merely because a button was pressed.
 
+Current native milestone:
+- Android VPN consent flow through `VpnService.prepare()`
+- Foreground `VpnService` shell with a persistent notification and stop action
+- Flutter bridge methods for permission, start, stop, and service state
+- No TUN descriptor is established until the sing-box adapter can consume it
+
 ### Core domain
 
 Platform-independent models and use cases:
@@ -66,20 +72,20 @@ tool/                        Development and bootstrap scripts
 .github/workflows/           CI workflows
 ```
 
-The exact native source layout may change after the official sing-box Android integration API is verified. Generated Gradle files are created by `tool/bootstrap_android.py`; first-party Kotlin source remains versioned under `native/android/`.
+The generated Gradle files are created by `tool/bootstrap_android.py`; first-party Kotlin source remains versioned under `native/android`.
 
 ## Connection lifecycle
 
 1. User selects Connect.
 2. Android host requests VPN permission when required.
 3. The app validates the selected profile and routing configuration.
-4. Kotlin starts the foreground VPN service and obtains the TUN descriptor.
-5. The engine adapter starts sing-box with the TUN descriptor and validated configuration.
+4. Kotlin starts the foreground VPN service.
+5. The engine adapter starts sing-box with a validated configuration and the TUN descriptor.
 6. The host reports Connected only after the engine reports a successful start.
 7. Disconnect, service stop, process death, and errors all converge on safe cleanup.
 8. UI receives a final state and a redacted error reason.
 
-Every transition must be idempotent. Repeated Connect/Disconnect events must not create duplicate services or leak descriptors.
+Every transition must be idempotent. Repeated Connect/Disconnect events must not create duplicate services or leak descriptors. Until step 5 is implemented, the current service is only a lifecycle shell and must never be presented as an active VPN.
 
 ## Configuration rules
 
@@ -93,7 +99,7 @@ Every transition must be idempotent. Repeated Connect/Disconnect events must not
 ## Testing boundaries
 
 - Unit tests: parsers, validation, routing policy, server selection.
-- Android tests: permission flow, service lifecycle, TUN cleanup, notification.
+- Android tests: permission flow, service lifecycle, notification.
 - Engine integration tests: start/stop, DNS, representative protocols, invalid configuration.
 - Device matrix: supported Android versions and at least one real device from each supported API range.
 - Leak checks: DNS and IPv6 behavior, including reconnect and failure cases.
