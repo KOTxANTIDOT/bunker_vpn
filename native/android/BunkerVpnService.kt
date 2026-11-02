@@ -38,7 +38,7 @@ class BunkerVpnService : VpnService() {
         when (intent?.action) {
             ACTION_STOP -> {
                 currentState = "STOPPED"
-                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopForeground(true)
                 stopSelf(startId)
             }
             ACTION_START -> {
@@ -112,7 +112,7 @@ class BunkerVpnService : VpnService() {
             .setOngoing(true)
             .addAction(
                 Notification.Action.Builder(
-                    null,
+                    android.R.drawable.ic_media_pause,
                     "Остановить",
                     stopPendingIntent
                 ).build()
