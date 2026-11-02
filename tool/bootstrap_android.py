@@ -24,6 +24,51 @@ def install_native_sources() -> None:
         shutil.copy2(source, target_dir / filename)
 
 
+def patch_libbox_dependency() -> None:
+    """Add the pinned upstream Android libbox artifact to the generated host."""
+    settings_candidates = (
+        ANDROID_DIR / "settings.gradle.kts",
+        ANDROID_DIR / "settings.gradle",
+    )
+    settings = next((path for path in settings_candidates if path.is_file()), None)
+    if settings is None:
+        raise FileNotFoundError("Generated Android settings.gradle(.kts) not found")
+
+    settings_content = settings.read_text(encoding="utf-8")
+    if "https://jitpack.io" not in settings_content:
+        if settings.suffix == ".kts":
+            repository = '        maven { url = uri("https://jitpack.io") }\\n'
+        else:
+            repository = "        maven { url 'https://jitpack.io' }\\n"
+        marker = "dependencyResolutionManagement {"
+        if marker not in settings_content:
+            raise RuntimeError("Could not locate dependencyResolutionManagement in Android settings")
+        settings_content = settings_content.replace(
+            "repositories {", "repositories {\\n" + repository, 1
+        )
+        settings.write_text(settings_content, encoding="utf-8")
+
+    app_candidates = (
+        ANDROID_DIR / "app/build.gradle.kts",
+        ANDROID_DIR / "app/build.gradle",
+    )
+    app_gradle = next((path for path in app_candidates if path.is_file()), None)
+    if app_gradle is None:
+        raise FileNotFoundError("Generated Android app build.gradle(.kts) not found")
+
+    app_content = app_gradle.read_text(encoding="utf-8")
+    dependency = "com.github.singbox-android:libbox:1.14.4"
+    if dependency not in app_content:
+        if app_gradle.suffix == ".kts":
+            declaration = f'    implementation("{dependency}")\\n'
+        else:
+            declaration = f"    implementation '{dependency}'\\n"
+        if "dependencies {" not in app_content:
+            raise RuntimeError("Could not locate dependencies block in Android app Gradle file")
+        app_content = app_content.replace("dependencies {", "dependencies {\\n" + declaration, 1)
+        app_gradle.write_text(app_content, encoding="utf-8")
+
+
 def patch_manifest() -> None:
     manifest = ANDROID_DIR / "app/src/main/AndroidManifest.xml"
     if not manifest.is_file():
@@ -88,6 +133,7 @@ def main() -> None:
         )
 
     install_native_sources()
+    patch_libbox_dependency()
     patch_manifest()
     print("Android host is ready. BUNKER native VPN service installed.")
 
