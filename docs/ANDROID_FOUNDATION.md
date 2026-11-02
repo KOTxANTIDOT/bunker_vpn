@@ -26,7 +26,7 @@ The service currently reports `SERVICE_READY_NO_ENGINE`. It deliberately does **
 
 The generated Android host now resolves the upstream Android `libbox` artifact through JitPack:
 
-- Artifact: `com.github.singbox-android:libbox:1.14.4`
+- Artifact: `com.github.singbox-android:libbox:1.14.3`
 - Upstream wrapper: https://github.com/singbox-android/libbox
 - Engine source: https://github.com/SagerNet/sing-box
 - The version is pinned in `tool/bootstrap_android.py`; do not use a floating version.
