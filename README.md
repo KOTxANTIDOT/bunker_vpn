@@ -1,10 +1,10 @@
 # BUNKER VPN
 
-**An open-source VPN client built from the ground up.**
+**An open-source Android VPN client built from the ground up.**
 
 BUNKER VPN is a new project. It does not fork the old `bunker-cat` application and does not copy code from Throne or other clients.
 
-> **Project status:** Foundation / architecture. No VPN connection functionality is implemented yet.
+> **Project status:** Android foundation. The app shell and Flutter-to-Kotlin bridge are in place; VPN tunnel and engine integration are not implemented yet.
 
 ## Current direction
 
@@ -12,7 +12,7 @@ BUNKER VPN is a new project. It does not fork the old `bunker-cat` application a
 - **UI:** Flutter
 - **Android integration:** Kotlin + Android `VpnService`
 - **Initial network engine:** sing-box, integrated as a third-party component
-- **License target:** GPL-3.0-or-later, subject to the dependency/license audit documented in `docs/LICENSING.md`
+- **License target:** GPL-3.0-or-later, subject to the dependency/license audit in `docs/LICENSING.md`
 - **Primary language:** Russian
 
 ## Product principles
@@ -39,15 +39,34 @@ BUNKER VPN is a new project. It does not fork the old `bunker-cat` application a
 ## Repository map
 
 ```text
-app/flutter/          Flutter application (planned)
-android/              Kotlin Android host and VpnService (planned)
-core/                 Platform-independent domain logic (planned)
-engine/               sing-box integration boundary (planned)
-docs/                 Architecture, roadmap, security and licensing
+app/flutter/                 Flutter application
+app/flutter/android/         Generated Android Gradle host (created by bootstrap)
+native/android/              Versioned Kotlin bridge source
+core/                        Platform-independent domain logic
+engine/                      sing-box integration boundary
+docs/                        Architecture, roadmap, security and licensing
+tool/                        Development/bootstrap scripts
 ```
 
-See:
+## Local build
+
+Requirements: Flutter stable, Android SDK, a supported JDK, and Python 3.
+
+```bash
+cd app/flutter
+python3 ../../tool/bootstrap_android.py
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug
+```
+
+The Android Gradle host is generated locally by the bootstrap script. CI runs the same setup and publishes a debug APK artifact.
+
+## Documentation
+
 - [Architecture](docs/ARCHITECTURE.md)
+- [Android foundation](docs/ANDROID_FOUNDATION.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Security model](docs/SECURITY.md)
 - [Licensing and third-party components](docs/LICENSING.md)
@@ -55,4 +74,4 @@ See:
 
 ## Important
 
-This repository is currently documentation and project scaffolding. Do not treat it as a usable VPN client or installable APK. Features will be marked complete only after implementation and tests.
+The current app shell is not a usable VPN client. It deliberately shows a disconnected state until the real Android VPN service and network engine are integrated and tested.
