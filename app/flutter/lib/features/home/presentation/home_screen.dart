@@ -224,9 +224,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Проверим системное VPN-разрешение и запустим служебный '
-                    'компонент. Передача трафика начнётся только после '
-                    'подключения sing-box.',
+                    'Импортируй профиль sing-box, чтобы создать VPN-туннель '
+                    'и направить через него трафик устройства.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: BunkerColors.textMuted,
@@ -281,14 +280,14 @@ class _HomeScreenState extends State<HomeScreen> {
             _InfoTile(
               icon: Icons.route_outlined,
               title: 'Маршрутизация',
-              value: _vpnServiceRunning ? 'VPN-туннель поднят' : 'Ожидает подключения',
+              value: _vpnServiceRunning ? 'TUN-интерфейс создан' : 'Ожидает подключения',
             ),
             const SizedBox(height: 10),
             _InfoTile(
               icon: Icons.security_outlined,
               title: 'Защита',
               value: _vpnServiceRunning
-                  ? 'Состояние: $_vpnServiceRunning'
+                  ? 'Android TUN активен'
                   : 'VPN не запущен',
             ),
             if (_bridgeMessage != null) ...[
