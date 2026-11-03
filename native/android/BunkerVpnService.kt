@@ -34,7 +34,7 @@ class BunkerVpnService : VpnService() {
     @Synchronized
     private fun startCommandServer() {
         if (commandServer != null) return
-        val platform = BunkerPlatformInterface(::establishTun)
+        val platform = BunkerPlatformInterface(this, ::establishTun)
         val server = CommandServer(commandHandler, platform)
         try {
             server.start()
