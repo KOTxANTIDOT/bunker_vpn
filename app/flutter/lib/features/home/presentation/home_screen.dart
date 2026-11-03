@@ -239,13 +239,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: FilledButton(
                       onPressed: _changingVpnService
                           ? null
-                          : _toggleVpnService,
+                          : _vpnServiceRunning
+                              ? _toggleVpnService
+                              : _importAndStartProfile,
                       child: Text(
                         _changingVpnService
                             ? 'ВЫПОЛНЯЮ...'
                             : _vpnServiceRunning
-                                ? 'ОСТАНОВИТЬ СЛУЖБУ'
-                                : 'ЗАПУСТИТЬ СЛУЖБУ ANDROID',
+                                ? 'ОТКЛЮЧИТЬ VPN'
+                                : 'ПОДКЛЮЧИТЬ VPN',
                       ),
                     ),
                   ),
