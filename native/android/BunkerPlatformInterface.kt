@@ -2,7 +2,10 @@ package com.bunkercat.bunker_vpn
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Build
 import android.system.OsConstants
 import io.nekohasekai.libbox.BridgeOptions
 import io.nekohasekai.libbox.BridgeSession
@@ -37,6 +40,14 @@ internal class BunkerPlatformInterface(
     private val connectivity =
         context.applicationContext.getSystemService(ConnectivityManager::class.java)
 
+    @Volatile
+    private var interfaceListener: InterfaceUpdateListener? = null
+
+    @Volatile
+    private var defaultNetworkCallback: ConnectivityManager.NetworkCallback? = null
+
+    private val monitorLock = Any()
+
     override fun localDNSTransport(): LocalDNSTransport? = null
 
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
@@ -53,9 +64,101 @@ internal class BunkerPlatformInterface(
         destinationPort: Int,
     ): ConnectionOwner = error("Connection-owner lookup is not implemented yet")
 
-    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) = Unit
+    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
+        synchronized(monitorLock) {
+            if (interfaceListener === listener && defaultNetworkCallback != null) {
+                publishDefaultInterface(connectivity.activeNetwork, listener)
+                return
+            }
+            stopDefaultInterfaceMonitor()
+            interfaceListener = listener
 
-    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) = Unit
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    publishDefaultInterface(network, listener)
+                }
+
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    networkCapabilities: NetworkCapabilities,
+                ) {
+                    publishDefaultInterface(network, listener, networkCapabilities)
+                }
+
+                override fun onLinkPropertiesChanged(
+                    network: Network,
+                    linkProperties: android.net.LinkProperties,
+                ) {
+                    publishDefaultInterface(network, listener)
+                }
+
+                override fun onLost(network: Network) {
+                    val active = connectivity.activeNetwork
+                    if (active == null || active == network) {
+                        listener.updateDefaultInterface("", -1, false, false)
+                    } else {
+                        publishDefaultInterface(active, listener)
+                    }
+                }
+            }
+            defaultNetworkCallback = callback
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    connectivity.registerDefaultNetworkCallback(callback)
+                } else {
+                    val request = NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build()
+                    connectivity.registerNetworkCallback(request, callback)
+                    publishDefaultInterface(connectivity.activeNetwork, listener)
+                }
+            } catch (error: Exception) {
+                defaultNetworkCallback = null
+                interfaceListener = null
+                throw IllegalStateException("Could not monitor Android default network", error)
+            }
+        }
+    }
+
+    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
+        synchronized(monitorLock) {
+            if (interfaceListener !== listener) return
+            stopDefaultInterfaceMonitor()
+        }
+    }
+
+    private fun stopDefaultInterfaceMonitor() {
+        val callback = defaultNetworkCallback
+        defaultNetworkCallback = null
+        interfaceListener = null
+        if (callback != null) {
+            runCatching { connectivity.unregisterNetworkCallback(callback) }
+        }
+    }
+
+    private fun publishDefaultInterface(
+        network: Network?,
+        listener: InterfaceUpdateListener,
+        knownCapabilities: NetworkCapabilities? = null,
+    ) {
+        if (network == null) {
+            listener.updateDefaultInterface("", -1, false, false)
+            return
+        }
+        val properties = connectivity.getLinkProperties(network)
+        val name = properties?.interfaceName
+        if (name.isNullOrBlank()) {
+            listener.updateDefaultInterface("", -1, false, false)
+            return
+        }
+        val index = runCatching { JavaNetworkInterface.getByName(name)?.index ?: -1 }
+            .getOrDefault(-1)
+        val capabilities = knownCapabilities ?: connectivity.getNetworkCapabilities(network)
+        val expensive = capabilities?.hasCapability(
+            NetworkCapabilities.NET_CAPABILITY_NOT_METERED
+        ) != true
+        listener.updateDefaultInterface(name, index, expensive, false)
+    }
 
     override fun getInterfaces(): NetworkInterfaceIterator {
         val javaInterfaces = runCatching {
