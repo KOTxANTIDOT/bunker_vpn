@@ -36,6 +36,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "requestVpnPermission" -> requestVpnPermission(result)
                 "startVpnService" -> startVpnService(result)
+                "startProfile" -> {
+                    val configJson = call.argument<String>("configJson")
+                    if (configJson.isNullOrBlank()) {
+                        result.error("INVALID_PROFILE", "Profile JSON is empty.", null)
+                    } else {
+                        startProfile(configJson, result)
+                    }
+                }
                 "stopVpnService" -> stopVpnService(result)
                 "getVpnServiceState" -> result.success(BunkerVpnService.currentState)
                 else -> result.notImplemented()
@@ -82,6 +90,28 @@ class MainActivity : FlutterActivity() {
             result.success("START_REQUESTED")
         } catch (error: Exception) {
             result.error("VPN_SERVICE_START_FAILED", error.message, null)
+        }
+    }
+
+    private fun startProfile(configJson: String, result: MethodChannel.Result) {
+        if (VpnService.prepare(this) != null) {
+            result.error("VPN_PERMISSION_REQUIRED", "Grant Android VPN permission first.", null)
+            return
+        }
+
+        val intent = Intent(this, BunkerVpnService::class.java).apply {
+            action = BunkerVpnService.ACTION_START_PROFILE
+            putExtra(BunkerVpnService.EXTRA_PROFILE_JSON, configJson)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            result.success("PROFILE_START_REQUESTED")
+        } catch (error: Exception) {
+            result.error("PROFILE_START_FAILED", error.message, null)
         }
     }
 
