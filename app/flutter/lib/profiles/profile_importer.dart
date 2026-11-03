@@ -110,11 +110,12 @@ class ProfileImporter {
         }
       ],
     };
-    final dns = (iface['dns'] ?? '1.1.1.1')
+    final dns = (iface['dns'] ?? '')
         .split(',')
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .toList();
+    if (dns.isEmpty) dns.add('1.1.1.1');
     return {
       'log': {'level': 'warn'},
       'dns': {
