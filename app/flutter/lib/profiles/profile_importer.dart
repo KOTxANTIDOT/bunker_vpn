@@ -251,13 +251,22 @@ class ProfileImporter {
         'insecure': q['allowInsecure'] == '1',
       };
       if (tls == 'reality') {
+        final publicKey = q['pbk'] ?? '';
+        if (publicKey.isEmpty) {
+          throw const FormatException('VLESS Reality: в ссылке отсутствует параметр pbk (public key).');
+        }
         outbound['tls']['reality'] = {
           'enabled': true,
-          'public_key': q['pbk'] ?? '',
+          'public_key': publicKey,
           'short_id': q['sid'] ?? ''
         };
-      }
-      if ((q['fp'] ?? '').isNotEmpty) {
+        // sing-box requires uTLS for Reality clients. Chrome is the common
+        // default when the share link does not include an explicit fp.
+        outbound['tls']['utls'] = {
+          'enabled': true,
+          'fingerprint': (q['fp'] ?? '').isNotEmpty ? q['fp'] : 'chrome'
+        };
+      } else if ((q['fp'] ?? '').isNotEmpty) {
         outbound['tls']['utls'] = {'enabled': true, 'fingerprint': q['fp']};
       }
     }
