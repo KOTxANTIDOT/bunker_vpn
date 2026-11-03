@@ -32,7 +32,7 @@ void main() {
 
   test('parses Hysteria2 and hy2 links', () {
     for (final scheme in ['hysteria2', 'hy2']) {
-      final config = importer.parse('${scheme}://secret@example.com:443?sni=example.com');
+      final config = importer.parse('$scheme://secret@example.com:443?sni=example.com');
       final outbound = (config['outbounds'] as List).first;
       expect(outbound['type'], 'hysteria2');
       expect(outbound['password'], 'secret');
