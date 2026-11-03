@@ -8,7 +8,9 @@ class ProfileImporter {
 
   Map<String, dynamic> parse(String input) {
     final value = input.trim();
-    if (value.isEmpty) throw const FormatException('Пустая ссылка или профиль.');
+    if (value.isEmpty) {
+      throw const FormatException('Пустая ссылка или профиль.');
+    }
     if (value.startsWith('{')) {
       final decoded = jsonDecode(value);
       if (decoded is! Map<String, dynamic>) {
