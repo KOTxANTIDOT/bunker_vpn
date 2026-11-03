@@ -126,9 +126,16 @@ def optimize_release_build() -> None:
 
     rules = gradle.parent / "proguard-rules.pro"
     existing = rules.read_text(encoding="utf-8") if rules.exists() else ""
-    keep = "-keep class io.nekohasekai.libbox.** { * }\n"
+    keep = "-keep class io.nekohasekai.libbox.** { *; }\n"
+    # Replace the earlier malformed rule if this generator runs on an existing tree.
+    existing = existing.replace(
+        "-keep class io.nekohasekai.libbox.** { * }",
+        "-keep class io.nekohasekai.libbox.** { *; }",
+    )
     if keep not in existing:
         rules.write_text(existing + keep, encoding="utf-8")
+    elif existing != rules.read_text(encoding="utf-8"):
+        rules.write_text(existing, encoding="utf-8")
 
 
 def patch_manifest() -> None:
