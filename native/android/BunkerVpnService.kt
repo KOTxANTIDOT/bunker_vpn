@@ -9,6 +9,8 @@ import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import io.nekohasekai.libbox.TunOptions
+import io.nekohasekai.libbox.CommandServer
+import io.nekohasekai.libbox.OverrideOptions
 
 /**
  * Owns the Android VPN service lifecycle.
@@ -19,6 +21,50 @@ import io.nekohasekai.libbox.TunOptions
  */
 class BunkerVpnService : VpnService() {
     private val tunController by lazy { AndroidTunController(this) }
+    private var commandServer: CommandServer? = null
+    private var platformInterface: BunkerPlatformInterface? = null
+
+    private val commandHandler by lazy {
+        BunkerCommandServerHandler(
+            onStop = { stopLibbox() },
+            onReload = { error("No active BUNKER profile to reload") },
+        )
+    }
+
+    @Synchronized
+    private fun startCommandServer() {
+        if (commandServer != null) return
+        val platform = BunkerPlatformInterface(::establishTun)
+        val server = CommandServer(commandHandler, platform)
+        try {
+            server.start()
+            platformInterface = platform
+            commandServer = server
+        } catch (error: Exception) {
+            runCatching { server.close() }
+            throw error
+        }
+    }
+
+    /** Starts a validated sing-box JSON profile after profile import is wired to UI. */
+    @Synchronized
+    internal fun startProfile(configJson: String) {
+        require(configJson.isNotBlank()) { "Profile configuration is empty" }
+        startCommandServer()
+        checkNotNull(commandServer).startOrReloadService(configJson, OverrideOptions())
+        currentState = "PROFILE_STARTED"
+        updateNotification("Профиль запущен")
+    }
+
+    @Synchronized
+    private fun stopLibbox() {
+        val server = commandServer ?: return
+        runCatching { server.closeService() }
+        runCatching { server.close() }
+        commandServer = null
+        platformInterface = null
+        runCatching { closeTun() }
+    }
 
     /** Called by the libbox PlatformInterface adapter when a profile requests TUN. */
     internal fun establishTun(options: TunOptions): Int = tunController.establish(options)
@@ -46,6 +92,7 @@ class BunkerVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                stopLibbox()
                 currentState = "STOPPED"
                 stopForeground(true)
                 stopSelf(startId)
@@ -63,8 +110,9 @@ class BunkerVpnService : VpnService() {
                 }
                 try {
                     LibboxRuntime.initialize(this)
-                    currentState = "ENGINE_INITIALIZED_NO_PROFILE"
-                    updateNotification("Движок загружен · профиль ещё не подключён")
+                    startCommandServer()
+                    currentState = "ENGINE_READY_NO_PROFILE"
+                    updateNotification("Движок готов · профиль ещё не подключён")
                 } catch (error: Exception) {
                     currentState = "ENGINE_ERROR"
                     updateNotification("Ошибка загрузки движка")
@@ -83,8 +131,8 @@ class BunkerVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        stopLibbox()
         currentState = "STOPPED"
-        runCatching { closeTun() }
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
