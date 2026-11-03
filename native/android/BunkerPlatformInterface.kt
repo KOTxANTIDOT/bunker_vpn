@@ -74,22 +74,32 @@ internal class BunkerPlatformInterface(
             interfaceListener = listener
 
             val callback = object : ConnectivityManager.NetworkCallback() {
+                private fun publishCurrentDefault(
+                    knownCapabilities: NetworkCapabilities? = null,
+                ) {
+                    // On API < 24 this callback observes every matching network,
+                    // not only the system default. Always resolve activeNetwork.
+                    publishDefaultInterface(connectivity.activeNetwork, listener, knownCapabilities)
+                }
+
                 override fun onAvailable(network: Network) {
-                    publishDefaultInterface(network, listener)
+                    publishCurrentDefault()
                 }
 
                 override fun onCapabilitiesChanged(
                     network: Network,
                     networkCapabilities: NetworkCapabilities,
                 ) {
-                    publishDefaultInterface(network, listener, networkCapabilities)
+                    publishCurrentDefault(
+                        networkCapabilities.takeIf { connectivity.activeNetwork == network }
+                    )
                 }
 
                 override fun onLinkPropertiesChanged(
                     network: Network,
                     linkProperties: android.net.LinkProperties,
                 ) {
-                    publishDefaultInterface(network, listener)
+                    publishCurrentDefault()
                 }
 
                 override fun onLost(network: Network) {
@@ -186,10 +196,10 @@ internal class BunkerPlatformInterface(
                     else -> Libbox.InterfaceTypeOther
                 }
                 addresses = StringArray(
-                    systemInterface.interfaceAddresses.map { it.toPrefix() }.iterator()
+                    systemInterface.interfaceAddresses.map { it.toPrefix() }
                 )
                 dnsServer = StringArray(
-                    properties.dnsServers.mapNotNull { it.hostAddress }.iterator()
+                    properties.dnsServers.mapNotNull { it.hostAddress }
                 )
                 gateway = StringArray(
                     properties.routes
@@ -197,7 +207,6 @@ internal class BunkerPlatformInterface(
                         .mapNotNull { it.gateway }
                         .filterNot { it.isAnyLocalAddress }
                         .mapNotNull { it.hostAddress }
-                        .iterator()
                 )
                 var interfaceFlags = 0
                 if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
@@ -271,11 +280,13 @@ internal class BunkerPlatformInterface(
     }
 
     private class StringArray(
-        private val iterator: Iterator<String>,
+        private val values: List<String>,
     ) : StringIterator {
-        override fun len(): Int = 0
-        override fun hasNext(): Boolean = iterator.hasNext()
-        override fun next(): String = iterator.next()
+        private var index = 0
+
+        override fun len(): Int = values.size
+        override fun hasNext(): Boolean = index < values.size
+        override fun next(): String = values[index++]
     }
 
     private fun InterfaceAddress.toPrefix(): String {
