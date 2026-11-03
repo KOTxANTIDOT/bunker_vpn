@@ -278,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: 'sing-box · libbox 1.14.3',
             ),
             const SizedBox(height: 10),
-            const _InfoTile(
+            _InfoTile(
               icon: Icons.route_outlined,
               title: 'Маршрутизация',
               value: _vpnServiceRunning ? 'VPN-туннель поднят' : 'Ожидает подключения',
