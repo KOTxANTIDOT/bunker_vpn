@@ -49,7 +49,7 @@ class ProfileImporter {
   Map<String, dynamic> _wireGuard(String text) {
     final sections = <String, Map<String, String>>{};
     String? current;
-    for (final rawLine in text.split(RegExp(r'\\r?\\n'))) {
+    for (final rawLine in text.split(RegExp(r'\r?\n'))) {
       final line = rawLine.split('#').first.trim();
       if (line.isEmpty) continue;
       if (line.startsWith('[') && line.endsWith(']')) {
