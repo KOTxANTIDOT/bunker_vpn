@@ -126,7 +126,7 @@ def optimize_release_build() -> None:
 
     rules = gradle.parent / "proguard-rules.pro"
     existing = rules.read_text(encoding="utf-8") if rules.exists() else ""
-    keep = "-keep class io.nekohasekai.libbox.** { * }\\n"
+    keep = "-keep class io.nekohasekai.libbox.** { * }\n"
     if keep not in existing:
         rules.write_text(existing + keep, encoding="utf-8")
 
