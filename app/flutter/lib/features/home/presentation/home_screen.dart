@@ -47,7 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
               'Служба Android остановлена. VPN-трафик не запускался.';
         });
       } else {
-        final granted = await _platform.requestVpnPermission();
+        await _platform.validateProfile(configJson);
+      final granted = await _platform.requestVpnPermission();
         if (!granted) {
           if (!mounted) return;
           setState(() {
@@ -146,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
-        _bridgeMessage = 'Не удалось запустить профиль: $error';
+        _bridgeMessage = 'Проверка или запуск профиля не удались: $error';
       });
     } finally {
       if (mounted) {
