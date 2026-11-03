@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../platform/vpn_platform.dart';
 import '../../../profiles/profile_importer.dart';
 import '../../../profiles/profile_store.dart';
+import '../../../profiles/subscription_service.dart';
 import '../../../theme/bunker_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,6 +19,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final VpnPlatform _platform = VpnPlatform();
   final ProfileImporter _profileImporter = const ProfileImporter();
   final ProfileStore _profileStore = ProfileStore();
+  final SubscriptionService _subscriptionService = SubscriptionService();
+  List<String> _subscriptionUrls = <String>[];
   List<StoredProfile> _savedProfiles = <StoredProfile>[];
   String? _activeProfileId;
 
@@ -30,10 +33,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadSavedProfiles() async {
     final profiles = await _profileStore.load();
     final activeId = await _profileStore.activeId();
+    final subscriptionUrls = await _profileStore.loadSubscriptions();
     if (!mounted) return;
     setState(() {
       _savedProfiles = profiles;
       _activeProfileId = activeId;
+      _subscriptionUrls = subscriptionUrls;
     });
   }
 
@@ -61,6 +66,79 @@ class _HomeScreenState extends State<HomeScreen> {
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() => _bridgeMessage = 'Не удалось запустить профиль: $error');
+    } finally {
+      if (mounted) setState(() => _changingVpnService = false);
+    }
+  }
+
+  Future<void> _importSubscription() async {
+    final url = await showDialog<String>(
+      context: context,
+      builder: (_) => const _SubscriptionUrlDialog(),
+    );
+    if (url == null || !mounted) return;
+    setState(() {
+      _changingVpnService = true;
+      _bridgeMessage = 'Загружаю подписку...';
+    });
+    try {
+      final result = await _subscriptionService.fetch(url);
+      var imported = 0;
+      for (final profile in result.profiles) {
+        final config = jsonEncode(profile);
+        await _platform.validateProfile(config);
+        final outbounds = profile['outbounds'] as List? ?? const [];
+        if (outbounds.isEmpty) continue;
+        final outbound = outbounds.firstWhere(
+          (item) => item is Map && item['tag'] == 'proxy',
+          orElse: () => outbounds.first,
+        ) as Map;
+        final name = '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+        await _profileStore.save(name, config);
+        imported++;
+      }
+      await _profileStore.saveSubscriptionUrl(result.sourceUrl);
+      await _loadSavedProfiles();
+      if (!mounted) return;
+      setState(() {
+        _bridgeMessage = 'Подписка обновлена: добавлено профилей — $imported. Для подключения выбери сервер в списке.';
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _bridgeMessage = 'Не удалось обновить подписку: $error');
+    } finally {
+      if (mounted) setState(() => _changingVpnService = false);
+    }
+  }
+
+  Future<void> _updateSubscription(String url) async {
+    if (_changingVpnService) return;
+    setState(() {
+      _changingVpnService = true;
+      _bridgeMessage = 'Обновляю подписку...';
+    });
+    try {
+      final result = await _subscriptionService.fetch(url);
+      var imported = 0;
+      for (final profile in result.profiles) {
+        final config = jsonEncode(profile);
+        await _platform.validateProfile(config);
+        final outbounds = profile['outbounds'] as List? ?? const [];
+        if (outbounds.isEmpty) continue;
+        final outbound = outbounds.firstWhere(
+          (item) => item is Map && item['tag'] == 'proxy',
+          orElse: () => outbounds.first,
+        ) as Map;
+        final name = '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+        await _profileStore.save(name, config);
+        imported++;
+      }
+      await _loadSavedProfiles();
+      if (!mounted) return;
+      setState(() => _bridgeMessage = 'Подписка обновлена: добавлено профилей — $imported.');
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _bridgeMessage = 'Ошибка обновления подписки: $error');
     } finally {
       if (mounted) setState(() => _changingVpnService = false);
     }
@@ -379,6 +457,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             const SizedBox(height: 18),
+            const SizedBox(height: 18),
+            const Text(
+              'ПОДПИСКИ',
+              style: TextStyle(
+                color: BunkerColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _changingVpnService ? null : _importSubscription,
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('ДОБАВИТЬ ПОДПИСКУ ПО URL'),
+            ),
+            ..._subscriptionUrls.map(
+              (url) => ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.link, color: BunkerColors.accent),
+                title: Text(url, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: IconButton(
+                  tooltip: 'Обновить подписку',
+                  onPressed: _changingVpnService ? null : () => _updateSubscription(url),
+                  icon: const Icon(Icons.refresh),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
             const _InfoTile(
               icon: Icons.hub_outlined,
               title: 'Сетевой движок',
@@ -488,6 +596,55 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
+
+class _SubscriptionUrlDialog extends StatefulWidget {
+  const _SubscriptionUrlDialog();
+
+  @override
+  State<_SubscriptionUrlDialog> createState() => _SubscriptionUrlDialogState();
+}
+
+class _SubscriptionUrlDialogState extends State<_SubscriptionUrlDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Добавить подписку'),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.url,
+        autocorrect: false,
+        decoration: const InputDecoration(
+          hintText: 'https://example.com/sub.txt',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('ОТМЕНА'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('ЗАГРУЗИТЬ'),
+        ),
+      ],
+    );
+  }
+}
 
 class _ProfileImportDialog extends StatefulWidget {
   const _ProfileImportDialog();
