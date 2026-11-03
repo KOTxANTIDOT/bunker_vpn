@@ -20,6 +20,16 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _changingVpnService = false;
   String? _bridgeMessage;
 
+  Future<String> _waitForServiceState(Set<String> expected) async {
+    var state = await _platform.getVpnServiceState();
+    for (var attempt = 0; attempt < 20; attempt++) {
+      if (expected.contains(state) || state == 'ENGINE_ERROR') return state;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      state = await _platform.getVpnServiceState();
+    }
+    return state;
+  }
+
   Future<void> _toggleVpnService() async {
     if (_changingVpnService) return;
     setState(() {
@@ -46,12 +56,19 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
         await _platform.startVpnService();
+        final state = await _waitForServiceState({
+          'ENGINE_READY_NO_PROFILE',
+          'PROFILE_STARTED',
+        });
         if (!mounted) return;
         setState(() {
-          _vpnServiceRunning = true;
-          _bridgeMessage =
-              'Служба Android запущена. Защита трафика пока не действует: '
-              'sing-box ещё не подключён.';
+          _vpnServiceRunning =
+              state == 'ENGINE_READY_NO_PROFILE' || state == 'PROFILE_STARTED';
+          _bridgeMessage = state == 'ENGINE_READY_NO_PROFILE'
+              ? 'Движок запущен, но VPN-профиль ещё не подключён.'
+              : state == 'ENGINE_ERROR'
+                  ? 'Android не смог запустить движок. Проверь конфигурацию и журнал.'
+                  : 'Ответ службы: $state';
         });
       }
     } on Exception catch (error) {
@@ -116,12 +133,15 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception('Разрешение Android VPN не выдано.');
       }
       await _platform.startProfile(configJson);
+      final state = await _waitForServiceState({'PROFILE_STARTED'});
       if (!mounted) return;
       setState(() {
-        _vpnServiceRunning = true;
-        _bridgeMessage =
-            'Профиль передан sing-box. Проверяем запуск туннеля; '
-            'это ещё не подтверждение защищённого соединения.';
+        _vpnServiceRunning = state == 'PROFILE_STARTED';
+        _bridgeMessage = state == 'PROFILE_STARTED'
+            ? 'sing-box принял профиль. Нужна проверка реального трафика на устройстве.'
+            : state == 'ENGINE_ERROR'
+                ? 'sing-box не смог запустить профиль. Проверь JSON и настройки.'
+                : 'Профиль отправлен, состояние службы: $state';
       });
     } on Exception catch (error) {
       if (!mounted) return;
