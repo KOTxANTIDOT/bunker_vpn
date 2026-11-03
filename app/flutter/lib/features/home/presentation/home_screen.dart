@@ -105,12 +105,12 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception('Разрешение Android VPN не выдано.');
       }
       await _platform.startProfile(configJson);
-      final state = await _waitForServiceState({'PROFILE_STARTED'});
+      final state = await _waitForServiceState({'CONNECTED'});
       if (!mounted) return;
       setState(() {
-        _vpnServiceRunning = state == 'PROFILE_STARTED';
-        _bridgeMessage = state == 'PROFILE_STARTED'
-            ? 'sing-box принял профиль. Нужна проверка реального трафика на устройстве.'
+        _vpnServiceRunning = state == 'CONNECTED';
+        _bridgeMessage = state == 'CONNECTED'
+            ? 'VPN-туннель создан Android. Проверяем доступ к сети и отсутствие утечек.'
             : state == 'ENGINE_ERROR'
                 ? 'sing-box не смог запустить профиль. Проверь JSON и настройки.'
                 : 'Профиль отправлен, состояние службы: $state';
@@ -215,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 22),
                   const Text(
-                    'Android-основа готова',
+                    'Подключение через sing-box',
                     style: TextStyle(
                       color: BunkerColors.textPrimary,
                       fontSize: 22,
@@ -258,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: OutlinedButton.icon(
                 onPressed: _changingVpnService ? null : _importAndStartProfile,
                 icon: const Icon(Icons.data_object_outlined),
-                label: const Text('ВСТАВИТЬ JSON-ПРОФИЛЬ'),
+                label: const Text('ИМПОРТИРОВАТЬ SING-BOX JSON'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: BunkerColors.accent,
                   side: const BorderSide(color: BunkerColors.accent),
@@ -273,20 +273,20 @@ class _HomeScreenState extends State<HomeScreen> {
             const _InfoTile(
               icon: Icons.hub_outlined,
               title: 'Сетевой движок',
-              value: 'sing-box · подготовка',
+              value: 'sing-box · libbox 1.14.3',
             ),
             const SizedBox(height: 10),
             const _InfoTile(
               icon: Icons.route_outlined,
               title: 'Маршрутизация',
-              value: 'Ещё не активна',
+              value: _vpnServiceRunning ? 'VPN-туннель поднят' : 'Ожидает подключения',
             ),
             const SizedBox(height: 10),
             _InfoTile(
               icon: Icons.security_outlined,
               title: 'Защита',
               value: _vpnServiceRunning
-                  ? 'Сервис активен · без туннеля'
+                  ? 'Состояние: $_vpnServiceRunning'
                   : 'VPN не запущен',
             ),
             if (_bridgeMessage != null) ...[
@@ -405,7 +405,7 @@ class _ProfileImportDialogState extends State<_ProfileImportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Импорт sing-box JSON'),
+      title: const Text('Импорт профиля sing-box'),
       content: SizedBox(
         width: double.maxFinite,
         child: TextField(
@@ -416,7 +416,7 @@ class _ProfileImportDialogState extends State<_ProfileImportDialog> {
           autocorrect: false,
           enableSuggestions: false,
           decoration: const InputDecoration(
-            hintText: 'Вставь сюда полный sing-box JSON',
+            hintText: 'Вставь полный sing-box JSON с inbound типа tun и outbound сервера',
             border: OutlineInputBorder(),
           ),
         ),
