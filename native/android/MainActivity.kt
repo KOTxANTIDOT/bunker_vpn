@@ -34,6 +34,19 @@ class MainActivity : FlutterActivity() {
                         )
                     )
                 }
+                "validateProfile" -> {
+                    val configJson = call.argument<String>("configJson")
+                    if (configJson.isNullOrBlank()) {
+                        result.error("INVALID_PROFILE", "Profile JSON is empty.", null)
+                    } else {
+                        try {
+                            Libbox.checkConfig(configJson)
+                            result.success("CONFIG_VALID")
+                        } catch (error: Exception) {
+                            result.error("INVALID_PROFILE", error.message ?: "sing-box rejected the configuration.", null)
+                        }
+                    }
+                }
                 "requestVpnPermission" -> requestVpnPermission(result)
                 "startVpnService" -> startVpnService(result)
                 "startProfile" -> {
