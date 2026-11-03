@@ -18,6 +18,10 @@ void main() {
     expect(dns.first['type'], 'udp');
     expect(dns.first['server'], '1.1.1.1');
     expect(dns.first.containsKey('address'), isFalse);
+    expect(outbound.any((item) => item['type'] == 'dns'), isFalse);
+    expect((config['route'] as Map)['rules'], [
+      {'protocol': 'dns', 'action': 'hijack-dns'}
+    ]);
   });
 
   test('parses Trojan share link', () {
@@ -64,6 +68,10 @@ Reserved = 1, 2, 3
     expect(endpoint['private_key'], 'private-key');
     expect((endpoint['peers'] as List).first['reserved'], [1, 2, 3]);
     expect(config['route']['final'], 'warp');
+    expect((config['outbounds'] as List).any((item) => item['type'] == 'dns'), isFalse);
+    expect(config['route']['rules'], [
+      {'protocol': 'dns', 'action': 'hijack-dns'}
+    ]);
   });
 
   test('uses fallback DNS when WireGuard DNS is empty', () {
