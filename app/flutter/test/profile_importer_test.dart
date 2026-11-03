@@ -38,6 +38,30 @@ void main() {
       expect(outbound['password'], 'secret');
     }
   });
+  test('parses WireGuard configuration for WARP endpoint', () {
+    const wireguard = '''
+[Interface]
+PrivateKey = private-key
+Address = 172.16.0.2/32, 2606:4700:110::2/128
+DNS = 1.1.1.1
+MTU = 1280
+
+[Peer]
+PublicKey = cloudflare-public-key
+AllowedIPs = 0.0.0.0/0, ::/0
+Endpoint = engage.cloudflareclient.com:2408
+PersistentKeepalive = 25
+Reserved = 1, 2, 3
+''';
+    final config = importer.parse(wireguard);
+    final endpoint = (config['endpoints'] as List).first;
+    expect(endpoint['type'], 'wireguard');
+    expect(endpoint['tag'], 'warp');
+    expect(endpoint['private_key'], 'private-key');
+    expect((endpoint['peers'] as List).first['reserved'], [1, 2, 3]);
+    expect(config['route']['final'], 'warp');
+  });
+
   test('keeps full sing-box JSON profiles', () {
     final config = importer.parse('{"outbounds":[{"type":"direct"}]}');
     expect((config['outbounds'] as List).first['type'], 'direct');
