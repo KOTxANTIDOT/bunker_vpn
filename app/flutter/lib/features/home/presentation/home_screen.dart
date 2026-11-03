@@ -104,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!granted) {
         throw Exception('Разрешение Android VPN не выдано.');
       }
-      await _platform.startProfile(normalizedConfig)
+      await _platform.startProfile(normalizedConfig);
       final state = await _waitForServiceState({'CONNECTED'});
       if (!mounted) return;
       setState(() {
