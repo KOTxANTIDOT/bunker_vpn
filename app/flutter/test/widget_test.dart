@@ -7,9 +7,9 @@ void main() {
     await tester.pumpWidget(const BunkerVpnApp());
 
     expect(find.text('BUNKER VPN'), findsOneWidget);
-    expect(find.text('Android-основа готова'), findsOneWidget);
+    expect(find.text('Подключение через sing-box'), findsOneWidget);
     expect(
-      find.text('ЗАПУСТИТЬ СЛУЖБУ ANDROID'),
+      find.text('ПОДКЛЮЧИТЬ VPN'),
       findsOneWidget,
     );
 
@@ -19,6 +19,6 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('VPN не запущен'), findsOneWidget);
-    expect(find.text('sing-box · подготовка'), findsOneWidget);
+    expect(find.text('sing-box · libbox 1.14.3'), findsOneWidget);
   });
 }
