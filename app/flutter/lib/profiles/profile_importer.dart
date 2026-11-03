@@ -119,7 +119,7 @@ class ProfileImporter {
       'log': {'level': 'warn'},
       'dns': {
         'servers': [
-          {'tag': 'dns-remote', 'address': dns.first, 'detour': 'warp'}
+          {'type': 'udp', 'tag': 'dns-remote', 'server': dns.first, 'detour': 'warp'}
         ],
         'final': 'dns-remote'
       },
@@ -154,7 +154,7 @@ class ProfileImporter {
         'log': {'level': 'warn'},
         'dns': {
           'servers': [
-            {'tag': 'dns-remote', 'address': '1.1.1.1', 'detour': 'proxy'}
+            {'type': 'udp', 'tag': 'dns-remote', 'server': '1.1.1.1', 'detour': 'proxy'}
           ],
           'final': 'dns-remote'
         },
