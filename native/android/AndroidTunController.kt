@@ -92,7 +92,7 @@ internal class AndroidTunController(
         if (options.isHTTPProxyEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             builder.setHttpProxy(
                 ProxyInfo.buildDirectProxy(
-                    InetAddress.getByName(options.httpProxyServer),
+                    options.httpProxyServer,
                     options.httpProxyServerPort,
                     options.httpProxyBypassDomain.toList(),
                 )
@@ -129,6 +129,6 @@ internal class AndroidTunController(
     }
 
     private fun RoutePrefix.toIpPrefix(): android.net.IpPrefix {
-        return android.net.IpPrefix(address(), prefix())
+        return android.net.IpPrefix(InetAddress.getByName(address()), prefix())
     }
 }
