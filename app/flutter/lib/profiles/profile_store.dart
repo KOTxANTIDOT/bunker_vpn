@@ -53,7 +53,14 @@ class ProfileStore {
   Future<String> save(String name, String configJson) async {
     final prefs = await SharedPreferences.getInstance();
     final profiles = await load();
-    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    final existingIndex =
+        profiles.indexWhere((profile) => profile.configJson == configJson);
+    final id = existingIndex >= 0
+        ? profiles[existingIndex].id
+        : DateTime.now().microsecondsSinceEpoch.toString();
+    if (existingIndex >= 0) {
+      profiles.removeAt(existingIndex);
+    }
     profiles.insert(
       0,
       StoredProfile(id: id, name: name, configJson: configJson),
