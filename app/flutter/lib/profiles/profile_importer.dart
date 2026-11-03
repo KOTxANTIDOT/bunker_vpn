@@ -138,14 +138,13 @@ class ProfileImporter {
       ],
       'endpoints': [wireguardEndpoint],
       'outbounds': [
-        {'type': 'direct', 'tag': 'direct'},
-        {'type': 'dns', 'tag': 'dns-out'}
+        {'type': 'direct', 'tag': 'direct'}
       ],
       'route': {
         'auto_detect_interface': true,
         'final': 'warp',
         'rules': [
-          {'protocol': 'dns', 'outbound': 'dns-out'}
+          {'protocol': 'dns', 'action': 'hijack-dns'}
         ]
       }
     };
@@ -173,14 +172,13 @@ class ProfileImporter {
         ],
         'outbounds': [
           outbound,
-          {'type': 'direct', 'tag': 'direct'},
-          {'type': 'dns', 'tag': 'dns-out'}
+          {'type': 'direct', 'tag': 'direct'}
         ],
         'route': {
           'auto_detect_interface': true,
           'final': 'proxy',
           'rules': [
-            {'protocol': 'dns', 'outbound': 'dns-out'}
+            {'protocol': 'dns', 'action': 'hijack-dns'}
           ]
         }
       };
