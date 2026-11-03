@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: Analyze, test and build debug APK
+    name: Analyze, test and build arm64 release APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,13 +53,22 @@ jobs:
         working-directory: app/flutter
         run: flutter test
 
-      - name: Build debug APK
+      - name: Build optimized Android APK (ARM64)
         working-directory: app/flutter
-        run: flutter build apk --debug
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
 
-      - name: Upload debug APK
+      - name: Check APK size (70 MB limit)
+        working-directory: app/flutter
+        run: |
+          APK="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          test -f "$APK"
+          SIZE=$(stat -c%s "$APK")
+          echo "ARM64 APK size: $((SIZE / 1024 / 1024)) MB"
+          test "$SIZE" -le 73400320 || { echo "APK exceeds 70 MB"; exit 1; }
+
+      - name: Upload optimized ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: bunker-vpn-debug
-          path: app/flutter/build/app/outputs/flutter-apk/app-debug.apk
+          name: bunker-vpn-arm64-release
+          path: app/flutter/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           if-no-files-found: error
