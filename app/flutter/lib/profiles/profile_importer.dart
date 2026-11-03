@@ -26,6 +26,11 @@ class ProfileImporter {
         return _vless(uri);
       case 'trojan':
         return _trojan(uri);
+      case 'hysteria':
+        return _hysteria(uri);
+      case 'hysteria2':
+      case 'hy2':
+        return _hysteria2(uri);
       case 'ss':
       case 'shadowsocks':
         return _shadowsocks(uri);
@@ -131,6 +136,72 @@ class ProfileImporter {
     return _base(outbound);
   }
 
+  Map<String, dynamic> _hysteria(Uri uri) {
+    final host = uri.host;
+    final port = uri.port;
+    final password = uri.userInfo;
+    if (host.isEmpty || port == 0 || password.isEmpty) {
+      throw const FormatException('Hysteria: нужны сервер, порт и пароль.');
+    }
+    final q = uri.queryParameters;
+    final outbound = <String, dynamic>{
+      'type': 'hysteria',
+      'tag': 'proxy',
+      'server': host,
+      'server_port': port,
+      'up_mbps': int.tryParse(q['upmbps'] ?? q['up_mbps'] ?? '100') ?? 100,
+      'down_mbps': int.tryParse(q['downmbps'] ?? q['down_mbps'] ?? '100') ?? 100,
+      'password': Uri.decodeComponent(password),
+      'tls': {
+        'enabled': true,
+        'server_name': q['sni'] ?? q['peer'] ?? host,
+        'insecure': q['insecure'] == '1' || q['allowInsecure'] == '1',
+      },
+    };
+    final obfs = q['obfs'];
+    final obfsPassword = q['obfs-password'] ?? q['obfs_password'];
+    if (obfs != null && obfs.isNotEmpty) {
+      outbound['obfs'] = {
+        'type': obfs,
+        if (obfsPassword != null && obfsPassword.isNotEmpty) 'password': obfsPassword,
+      };
+    }
+    return _base(outbound);
+  }
+
+  Map<String, dynamic> _hysteria2(Uri uri) {
+    final host = uri.host;
+    final port = uri.port;
+    final rawUserInfo = Uri.decodeComponent(uri.userInfo);
+    final password = rawUserInfo.contains(':')
+        ? rawUserInfo.substring(rawUserInfo.indexOf(':') + 1)
+        : rawUserInfo;
+    if (host.isEmpty || port == 0 || password.isEmpty) {
+      throw const FormatException('Hysteria2: нужны сервер, порт и пароль.');
+    }
+    final q = uri.queryParameters;
+    final outbound = <String, dynamic>{
+      'type': 'hysteria2',
+      'tag': 'proxy',
+      'server': host,
+      'server_port': port,
+      'password': password,
+      'tls': {
+        'enabled': true,
+        'server_name': q['sni'] ?? q['peer'] ?? host,
+        'insecure': q['insecure'] == '1' || q['allowInsecure'] == '1',
+      },
+    };
+    final obfs = q['obfs'];
+    final obfsPassword = q['obfs-password'] ?? q['obfs_password'];
+    if (obfs != null && obfs.isNotEmpty) {
+      outbound['obfs'] = {
+        'type': obfs,
+        if (obfsPassword != null && obfsPassword.isNotEmpty) 'password': obfsPassword,
+      };
+    }
+    return _base(outbound);
+  }
   Map<String, dynamic> _shadowsocks(Uri uri) {
     var userInfo = uri.userInfo;
     if (userInfo.isEmpty && uri.host.isNotEmpty) {
