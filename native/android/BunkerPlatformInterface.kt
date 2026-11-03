@@ -8,6 +8,7 @@ import io.nekohasekai.libbox.BridgeOptions
 import io.nekohasekai.libbox.BridgeSession
 import io.nekohasekai.libbox.ConnectionOwner
 import io.nekohasekai.libbox.InterfaceUpdateListener
+import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.LocalDNSTransport
 import io.nekohasekai.libbox.NeighborUpdateListener
 import io.nekohasekai.libbox.NetworkInterfaceIterator
@@ -74,12 +75,12 @@ internal class BunkerPlatformInterface(
                 mtu = runCatching { systemInterface.mtu }.getOrDefault(0)
                 type = when {
                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ->
-                        LibboxNetworkInterface.InterfaceTypeWIFI
+                        Libbox.InterfaceTypeWIFI
                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ->
-                        LibboxNetworkInterface.InterfaceTypeCellular
+                        Libbox.InterfaceTypeCellular
                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ->
-                        LibboxNetworkInterface.InterfaceTypeEthernet
-                    else -> LibboxNetworkInterface.InterfaceTypeOther
+                        Libbox.InterfaceTypeEthernet
+                    else -> Libbox.InterfaceTypeOther
                 }
                 addresses = StringArray(
                     systemInterface.interfaceAddresses.map { it.toPrefix() }.iterator()
