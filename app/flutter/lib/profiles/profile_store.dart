@@ -29,6 +29,7 @@ class StoredProfile {
 class ProfileStore {
   static const _profilesKey = 'bunker.saved_profiles.v1';
   static const _activeKey = 'bunker.active_profile.v1';
+  static const _subscriptionsKey = 'bunker.subscriptions.v1';
 
   Future<List<StoredProfile>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,6 +64,18 @@ class ProfileStore {
     );
     await prefs.setString(_activeKey, id);
     return id;
+  }
+
+  Future<List<String>> loadSubscriptions() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_subscriptionsKey) ?? <String>[];
+  }
+
+  Future<void> saveSubscriptionUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    final urls = prefs.getStringList(_subscriptionsKey) ?? <String>[];
+    if (!urls.contains(url)) urls.insert(0, url);
+    await prefs.setStringList(_subscriptionsKey, urls);
   }
 
   Future<void> setActive(String id) async {
