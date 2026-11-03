@@ -51,9 +51,21 @@ class BunkerVpnService : VpnService() {
     internal fun startProfile(configJson: String) {
         require(configJson.isNotBlank()) { "Profile configuration is empty" }
         startCommandServer()
-        checkNotNull(commandServer).startOrReloadService(configJson, OverrideOptions())
-        currentState = "PROFILE_STARTED"
-        updateNotification("Профиль запущен")
+        currentState = "PROFILE_STARTING"
+        updateNotification("Запуск профиля и VPN-туннеля…")
+        try {
+            checkNotNull(commandServer).startOrReloadService(configJson, OverrideOptions())
+            check(tunController.isEstablished()) {
+                "sing-box принял команду, но Android VPN-туннель не был создан"
+            }
+            currentState = "CONNECTED"
+            updateNotification("VPN-туннель активен")
+        } catch (error: Exception) {
+            stopLibbox()
+            currentState = "ENGINE_ERROR"
+            updateNotification("Ошибка профиля · ${error.message ?: "неизвестная ошибка"}")
+            throw error
+        }
     }
 
     @Synchronized
@@ -125,6 +137,7 @@ class BunkerVpnService : VpnService() {
                     }
                 } catch (error: Exception) {
                     currentState = "ENGINE_ERROR"
+                    stopLibbox()
                     updateNotification("Ошибка запуска · ${error.message ?: "неизвестная ошибка"}")
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf(startId)
