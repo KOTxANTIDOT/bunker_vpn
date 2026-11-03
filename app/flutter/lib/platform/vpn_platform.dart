@@ -41,6 +41,16 @@ class VpnPlatform {
     return AndroidPlatformInfo.fromMap(result);
   }
 
+  Future<void> validateProfile(String configJson) async {
+    if (configJson.trim().isEmpty) {
+      throw ArgumentError.value(configJson, 'configJson', 'Profile JSON is empty');
+    }
+    await _channel.invokeMethod<String>(
+      'validateProfile',
+      <String, Object>{'configJson': configJson},
+    );
+  }
+
   Future<bool> requestVpnPermission() async {
     return await _channel.invokeMethod<bool>('requestVpnPermission') ??
         false;
