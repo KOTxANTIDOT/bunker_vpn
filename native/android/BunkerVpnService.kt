@@ -16,8 +16,8 @@ import io.nekohasekai.libbox.OverrideOptions
  * Owns the Android VPN service lifecycle.
  *
  * Initializes the native libbox runtime. The TUN interface is not established
- * until a validated profile and the command-server adapter are integrated.
- * This milestone does not route or protect network traffic.
+ * until a user-supplied sing-box JSON profile is passed to libbox.
+ * A started profile is not reported as connected until device-level TUN checks pass.
  */
 class BunkerVpnService : VpnService() {
     private val tunController by lazy { AndroidTunController(this) }
@@ -74,6 +74,8 @@ class BunkerVpnService : VpnService() {
 
     companion object {
         const val ACTION_START = "com.bunkercat.bunker_vpn.action.START"
+        const val ACTION_START_PROFILE = "com.bunkercat.bunker_vpn.action.START_PROFILE"
+        const val EXTRA_PROFILE_JSON = "profile_json"
         const val ACTION_STOP = "com.bunkercat.bunker_vpn.action.STOP"
 
         private const val CHANNEL_ID = "bunker_vpn_status"
@@ -97,7 +99,7 @@ class BunkerVpnService : VpnService() {
                 stopForeground(true)
                 stopSelf(startId)
             }
-            ACTION_START -> {
+            ACTION_START, ACTION_START_PROFILE -> {
                 val notification = buildNotification()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     startForeground(
@@ -111,8 +113,14 @@ class BunkerVpnService : VpnService() {
                 try {
                     LibboxRuntime.initialize(this)
                     startCommandServer()
-                    currentState = "ENGINE_READY_NO_PROFILE"
-                    updateNotification("Движок готов · профиль ещё не подключён")
+                    if (intent.action == ACTION_START_PROFILE) {
+                        val configJson = intent.getStringExtra(EXTRA_PROFILE_JSON)
+                            ?: error("Profile JSON is missing")
+                        startProfile(configJson)
+                    } else {
+                        currentState = "ENGINE_READY_NO_PROFILE"
+                        updateNotification("Движок готов · профиль ещё не подключён")
+                    }
                 } catch (error: Exception) {
                     currentState = "ENGINE_ERROR"
                     updateNotification("Ошибка загрузки движка")
