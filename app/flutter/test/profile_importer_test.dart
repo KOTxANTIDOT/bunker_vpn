@@ -23,6 +23,21 @@ void main() {
     expect(outbound['password'], 'secret');
   });
 
+  test('parses Hysteria link', () {
+    final config = importer.parse('hysteria://secret@example.com:443?sni=example.com');
+    final outbound = (config['outbounds'] as List).first;
+    expect(outbound['type'], 'hysteria');
+    expect(outbound['password'], 'secret');
+  });
+
+  test('parses Hysteria2 and hy2 links', () {
+    for (final scheme in ['hysteria2', 'hy2']) {
+      final config = importer.parse('${scheme}://secret@example.com:443?sni=example.com');
+      final outbound = (config['outbounds'] as List).first;
+      expect(outbound['type'], 'hysteria2');
+      expect(outbound['password'], 'secret');
+    }
+  });
   test('keeps full sing-box JSON profiles', () {
     final config = importer.parse('{"outbounds":[{"type":"direct"}]}');
     expect((config['outbounds'] as List).first['type'], 'direct');
