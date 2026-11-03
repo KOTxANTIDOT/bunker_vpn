@@ -90,6 +90,27 @@ Endpoint = engage.cloudflareclient.com:2408
     expect(dns.first['server'], '1.1.1.1');
   });
 
+  test('migrates legacy DNS outbound in imported sing-box JSON', () {
+    final config = importer.parse('''
+{
+  "outbounds": [
+    {"type": "vless", "tag": "proxy", "server": "example.com", "server_port": 443, "uuid": "11111111-1111-1111-1111-111111111111"},
+    {"type": "direct", "tag": "direct"},
+    {"type": "dns", "tag": "dns-out"}
+  ],
+  "route": {
+    "rules": [{"protocol": "dns", "outbound": "dns-out"}],
+    "final": "proxy"
+  }
+}
+''');
+    final outbounds = config['outbounds'] as List;
+    expect(outbounds.any((item) => item['type'] == 'dns'), isFalse);
+    expect((config['route'] as Map)['rules'], [
+      {'protocol': 'dns', 'action': 'hijack-dns'}
+    ]);
+  });
+
   test('keeps full sing-box JSON profiles', () {
     final config = importer.parse('{"outbounds":[{"type":"direct"}]}');
     expect((config['outbounds'] as List).first['type'], 'direct');
