@@ -19,7 +19,7 @@ class ProfileImporter {
       if (decoded is! Map<String, dynamic>) {
         throw const FormatException('Корень JSON должен быть объектом.');
       }
-      return decoded;
+      return _migrateLegacyDns(decoded);
     }
 
     final uri = Uri.tryParse(value);
@@ -44,6 +44,50 @@ class ProfileImporter {
       default:
         throw FormatException('Пока не поддерживается протокол: ${uri.scheme}');
     }
+  }
+
+
+  /// Migrates legacy sing-box JSON received from subscriptions or pasted configs.
+  /// sing-box 1.13+ removed the DNS outbound; DNS packets must be hijacked by
+  /// a route action instead.
+  Map<String, dynamic> _migrateLegacyDns(Map<String, dynamic> source) {
+    final config = Map<String, dynamic>.from(source);
+    final outbounds = (config['outbounds'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+    final removedDnsTags = outbounds
+        .where((item) => item['type'] == 'dns')
+        .map((item) => item['tag']?.toString())
+        .whereType<String>()
+        .toSet();
+    if (removedDnsTags.isEmpty) return config;
+
+    config['outbounds'] = outbounds
+        .where((item) => item['type'] != 'dns')
+        .toList();
+
+    final routeValue = config['route'];
+    if (routeValue is Map) {
+      final route = Map<String, dynamic>.from(routeValue);
+      final rulesValue = route['rules'];
+      if (rulesValue is List) {
+        route['rules'] = rulesValue.map((value) {
+          if (value is! Map) return value;
+          final rule = Map<String, dynamic>.from(value);
+          if (removedDnsTags.contains(rule['outbound'])) {
+            rule.remove('outbound');
+            rule['action'] = 'hijack-dns';
+          }
+          return rule;
+        }).toList();
+      }
+      if (removedDnsTags.contains(route['final'])) {
+        route.remove('final');
+      }
+      config['route'] = route;
+    }
+    return config;
   }
 
   Map<String, dynamic> _wireGuard(String text) {
