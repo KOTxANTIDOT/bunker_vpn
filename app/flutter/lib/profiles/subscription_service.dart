@@ -53,13 +53,13 @@ class SubscriptionService {
     if (content.isEmpty) throw const FormatException('Подписка пустая.');
     if (!content.contains('://') && !content.startsWith('{')) {
       try {
-        content = utf8.decode(base64.decode(base64.normalize(content.replaceAll(RegExp(r'\\s+'), ''))));
+        content = utf8.decode(base64.decode(base64.normalize(content.replaceAll(RegExp(r'\s+'), ''))));
       } on FormatException {
         // Keep plain text and report unsupported formats below.
       }
     }
     return content
-        .split(RegExp(r'[\\r\\n]+'))
+        .split(RegExp(r'[\r\n]+'))
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty && !line.startsWith('#') && !line.startsWith(';') && (line.contains('://') || line.startsWith('{')))
         .toList();
