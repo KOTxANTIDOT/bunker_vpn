@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../platform/vpn_platform.dart';
+import '../../../profiles/profile_importer.dart';
 import '../../../theme/bunker_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final VpnPlatform _platform = VpnPlatform();
+  final ProfileImporter _profileImporter = const ProfileImporter();
 
   bool _checkingBridge = false;
   bool _vpnServiceRunning = false;
@@ -95,16 +97,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _bridgeMessage = null;
     });
     try {
-      final decoded = jsonDecode(configJson);
-      if (decoded is! Map<String, dynamic>) {
-        throw const FormatException('В корне JSON должен быть объект.');
-      }
-      await _platform.validateProfile(configJson);
+      final profile = _profileImporter.parse(configJson);
+      final normalizedConfig = jsonEncode(profile);
+      await _platform.validateProfile(normalizedConfig);
       final granted = await _platform.requestVpnPermission();
       if (!granted) {
         throw Exception('Разрешение Android VPN не выдано.');
       }
-      await _platform.startProfile(configJson);
+      await _platform.startProfile(normalizedConfig)
       final state = await _waitForServiceState({'CONNECTED'});
       if (!mounted) return;
       setState(() {
@@ -259,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: OutlinedButton.icon(
                 onPressed: _changingVpnService ? null : _importAndStartProfile,
                 icon: const Icon(Icons.data_object_outlined),
-                label: const Text('ИМПОРТИРОВАТЬ SING-BOX JSON'),
+                label: const Text('ИМПОРТИРОВАТЬ ПРОФИЛЬ / ССЫЛКУ'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: BunkerColors.accent,
                   side: const BorderSide(color: BunkerColors.accent),
@@ -406,7 +406,7 @@ class _ProfileImportDialogState extends State<_ProfileImportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Импорт профиля sing-box'),
+      title: const Text('Импорт VPN-профиля'),
       content: SizedBox(
         width: double.maxFinite,
         child: TextField(
@@ -417,7 +417,7 @@ class _ProfileImportDialogState extends State<_ProfileImportDialog> {
           autocorrect: false,
           enableSuggestions: false,
           decoration: const InputDecoration(
-            hintText: 'Вставь полный sing-box JSON с inbound типа tun и outbound сервера',
+            hintText: 'Вставь VLESS / VMess / Trojan / Shadowsocks или sing-box JSON',
             border: OutlineInputBorder(),
           ),
         ),
