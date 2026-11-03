@@ -83,6 +83,54 @@ def patch_libbox_dependency() -> None:
             )
         app_gradle.write_text(app_content, encoding="utf-8")
 
+
+def optimize_release_build() -> None:
+    """Enable Android code/resource shrinking for production APKs."""
+    candidates = (
+        ANDROID_DIR / "app/build.gradle.kts",
+        ANDROID_DIR / "app/build.gradle",
+    )
+    gradle = next((path for path in candidates if path.is_file()), None)
+    if gradle is None:
+        raise FileNotFoundError("Android app Gradle file not found")
+
+    content = gradle.read_text(encoding="utf-8")
+    if gradle.suffix == ".kts":
+        release_block = """
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+"""
+    else:
+        release_block = """
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+"""
+    if "isMinifyEnabled = true" not in content and "minifyEnabled true" not in content:
+        if "android {" not in content:
+            raise RuntimeError("Could not locate android block in app Gradle file")
+        content = content.replace("android {", "android {" + release_block, 1)
+        gradle.write_text(content, encoding="utf-8")
+
+    rules = gradle.parent / "proguard-rules.pro"
+    existing = rules.read_text(encoding="utf-8") if rules.exists() else ""
+    keep = "-keep class io.nekohasekai.libbox.** { * }\\n"
+    if keep not in existing:
+        rules.write_text(existing + keep, encoding="utf-8")
+
+
 def patch_manifest() -> None:
     manifest = ANDROID_DIR / "app/src/main/AndroidManifest.xml"
     if not manifest.is_file():
@@ -148,6 +196,7 @@ def main() -> None:
 
     install_native_sources()
     patch_libbox_dependency()
+    optimize_release_build()
     patch_manifest()
     print("Android host is ready. BUNKER native VPN service installed.")
 
