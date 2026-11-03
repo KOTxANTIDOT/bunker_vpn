@@ -93,7 +93,11 @@ class _HomeScreenState extends State<HomeScreen> {
           (item) => item is Map && item['tag'] == 'proxy',
           orElse: () => outbounds.first,
         ) as Map;
-        final name = '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+        final name = (profile['endpoints'] as List?)?.any(
+                (item) => item is Map && item['type'] == 'wireguard',
+              ) == true
+          ? 'Cloudflare WARP'
+          : '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
         await _profileStore.save(name, config);
         imported++;
       }
@@ -129,7 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
           (item) => item is Map && item['tag'] == 'proxy',
           orElse: () => outbounds.first,
         ) as Map;
-        final name = '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+        final name = (profile['endpoints'] as List?)?.any(
+                (item) => item is Map && item['type'] == 'wireguard',
+              ) == true
+          ? 'Cloudflare WARP'
+          : '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
         await _profileStore.save(name, config);
         imported++;
       }
@@ -237,7 +245,11 @@ class _HomeScreenState extends State<HomeScreen> {
         (item) => item is Map && item['tag'] == 'proxy',
         orElse: () => outbounds.first,
       ) as Map;
-      final name = '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+      final name = (profile['endpoints'] as List?)?.any(
+                (item) => item is Map && item['type'] == 'wireguard',
+              ) == true
+          ? 'Cloudflare WARP'
+          : '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
       await _profileStore.save(name, normalizedConfig);
       await _loadSavedProfiles();
       final granted = await _platform.requestVpnPermission();
