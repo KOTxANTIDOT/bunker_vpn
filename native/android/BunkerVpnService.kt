@@ -58,9 +58,11 @@ class BunkerVpnService : VpnService() {
 
     @Synchronized
     private fun stopLibbox() {
-        val server = commandServer ?: return
-        runCatching { server.closeService() }
-        runCatching { server.close() }
+        val server = commandServer
+        if (server != null) {
+            runCatching { server.closeService() }
+            runCatching { server.close() }
+        }
         commandServer = null
         platformInterface = null
         runCatching { closeTun() }
@@ -123,7 +125,7 @@ class BunkerVpnService : VpnService() {
                     }
                 } catch (error: Exception) {
                     currentState = "ENGINE_ERROR"
-                    updateNotification("Ошибка загрузки движка")
+                    updateNotification("Ошибка запуска · ${error.message ?: "неизвестная ошибка"}")
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf(startId)
                 }
