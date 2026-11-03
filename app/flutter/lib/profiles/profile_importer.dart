@@ -1,0 +1,213 @@
+import 'dart:convert';
+
+/// Converts common share links into a minimal sing-box TUN configuration.
+/// Subscription URLs are intentionally not fetched here; they need a separate
+/// network/update flow with explicit user consent.
+class ProfileImporter {
+  const ProfileImporter();
+
+  Map<String, dynamic> parse(String input) {
+    final value = input.trim();
+    if (value.isEmpty) throw const FormatException('Пустая ссылка или профиль.');
+    if (value.startsWith('{')) {
+      final decoded = jsonDecode(value);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Корень JSON должен быть объектом.');
+      }
+      return decoded;
+    }
+
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasScheme) {
+      throw const FormatException('Не удалось распознать ссылку.');
+    }
+    switch (uri.scheme.toLowerCase()) {
+      case 'vless':
+        return _vless(uri);
+      case 'trojan':
+        return _trojan(uri);
+      case 'ss':
+      case 'shadowsocks':
+        return _shadowsocks(uri);
+      case 'vmess':
+        return _vmess(value);
+      default:
+        throw FormatException('Пока не поддерживается протокол: ${uri.scheme}');
+    }
+  }
+
+  Map<String, dynamic> _base(Map<String, dynamic> outbound) => {
+        'log': {'level': 'warn'},
+        'dns': {
+          'servers': [
+            {'tag': 'dns-remote', 'address': '1.1.1.1', 'detour': 'proxy'}
+          ],
+          'final': 'dns-remote'
+        },
+        'inbounds': [
+          {
+            'type': 'tun',
+            'tag': 'tun-in',
+            'interface_name': 'bunker0',
+            'address': ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
+            'mtu': 1400,
+            'auto_route': true,
+            'strict_route': true,
+            'stack': 'mixed'
+          }
+        ],
+        'outbounds': [
+          outbound,
+          {'type': 'direct', 'tag': 'direct'},
+          {'type': 'dns', 'tag': 'dns-out'}
+        ],
+        'route': {
+          'auto_detect_interface': true,
+          'final': 'proxy',
+          'rules': [
+            {'protocol': 'dns', 'outbound': 'dns-out'}
+          ]
+        }
+      };
+
+  Map<String, dynamic> _vless(Uri uri) {
+    final uuid = uri.userInfo;
+    final host = uri.host;
+    final port = uri.port;
+    if (uuid.isEmpty || host.isEmpty || port == 0) {
+      throw const FormatException('VLESS: нужны UUID, сервер и порт.');
+    }
+    final q = uri.queryParameters;
+    final tls = (q['security'] ?? '').toLowerCase();
+    final outbound = <String, dynamic>{
+      'type': 'vless',
+      'tag': 'proxy',
+      'server': host,
+      'server_port': port,
+      'uuid': uuid,
+    };
+    if ((q['flow'] ?? '').isNotEmpty) outbound['flow'] = q['flow'];
+    if (tls == 'tls' || tls == 'reality') {
+      outbound['tls'] = {
+        'enabled': true,
+        'server_name': q['sni'] ?? q['serverName'] ?? host,
+        'insecure': q['allowInsecure'] == '1',
+      };
+      if (tls == 'reality') {
+        outbound['tls']['reality'] = {
+          'enabled': true,
+          'public_key': q['pbk'] ?? '',
+          'short_id': q['sid'] ?? ''
+        };
+      }
+      if ((q['fp'] ?? '').isNotEmpty) {
+        outbound['tls']['utls'] = {'enabled': true, 'fingerprint': q['fp']};
+      }
+    }
+    _addTransport(outbound, q);
+    return _base(outbound);
+  }
+
+  Map<String, dynamic> _trojan(Uri uri) {
+    final host = uri.host;
+    final port = uri.port;
+    if (uri.userInfo.isEmpty || host.isEmpty || port == 0) {
+      throw const FormatException('Trojan: нужны пароль, сервер и порт.');
+    }
+    final q = uri.queryParameters;
+    final outbound = <String, dynamic>{
+      'type': 'trojan',
+      'tag': 'proxy',
+      'server': host,
+      'server_port': port,
+      'password': Uri.decodeComponent(uri.userInfo),
+      'tls': {
+        'enabled': true,
+        'server_name': q['sni'] ?? q['peer'] ?? host,
+        'insecure': q['allowInsecure'] == '1',
+      }
+    };
+    _addTransport(outbound, q);
+    return _base(outbound);
+  }
+
+  Map<String, dynamic> _shadowsocks(Uri uri) {
+    var userInfo = uri.userInfo;
+    if (userInfo.isEmpty && uri.host.isNotEmpty) {
+      final decoded = utf8.decode(base64.decode(base64.normalize(uri.host)));
+      userInfo = decoded;
+    }
+    final split = userInfo.indexOf(':');
+    if (split <= 0 || uri.host.isEmpty || uri.port == 0) {
+      throw const FormatException('Shadowsocks: неверный формат ссылки.');
+    }
+    return _base({
+      'type': 'shadowsocks',
+      'tag': 'proxy',
+      'server': uri.host,
+      'server_port': uri.port,
+      'method': userInfo.substring(0, split),
+      'password': userInfo.substring(split + 1),
+    });
+  }
+
+  Map<String, dynamic> _vmess(String value) {
+    final encoded = value.substring(value.indexOf('://') + 3).split('#').first;
+    final data = jsonDecode(utf8.decode(base64.decode(base64.normalize(encoded))));
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('VMess: некорректные данные.');
+    }
+    final host = (data['add'] ?? '').toString();
+    final port = int.tryParse((data['port'] ?? '').toString()) ?? 0;
+    final id = (data['id'] ?? '').toString();
+    if (host.isEmpty || port == 0 || id.isEmpty) {
+      throw const FormatException('VMess: отсутствует сервер, порт или UUID.');
+    }
+    final outbound = <String, dynamic>{
+      'type': 'vmess',
+      'tag': 'proxy',
+      'server': host,
+      'server_port': port,
+      'uuid': id,
+      'security': (data['scy'] ?? 'auto').toString(),
+    };
+    final net = (data['net'] ?? 'tcp').toString();
+    if (net == 'ws') {
+      outbound['transport'] = {
+        'type': 'ws',
+        'path': (data['path'] ?? '').toString(),
+        if ((data['host'] ?? '').toString().isNotEmpty)
+          'headers': {'Host': data['host'].toString()}
+      };
+    } else if (net == 'grpc') {
+      outbound['transport'] = {
+        'type': 'grpc',
+        'service_name': (data['path'] ?? '').toString()
+      };
+    }
+    if ((data['tls'] ?? '').toString() == 'tls') {
+      outbound['tls'] = {
+        'enabled': true,
+        'server_name': (data['sni'] ?? data['host'] ?? host).toString()
+      };
+    }
+    return _base(outbound);
+  }
+
+  void _addTransport(Map<String, dynamic> outbound, Map<String, String> q) {
+    final type = (q['type'] ?? '').toLowerCase();
+    if (type == 'ws') {
+      outbound['transport'] = {
+        'type': 'ws',
+        'path': q['path'] ?? '',
+        if ((q['host'] ?? '').isNotEmpty)
+          'headers': {'Host': q['host']}
+      };
+    } else if (type == 'grpc') {
+      outbound['transport'] = {
+        'type': 'grpc',
+        'service_name': q['serviceName'] ?? q['service_name'] ?? ''
+      };
+    }
+  }
+}
