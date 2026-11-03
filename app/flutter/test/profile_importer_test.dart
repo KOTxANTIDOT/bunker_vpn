@@ -14,6 +14,10 @@ void main() {
     expect(outbound.first['server'], 'example.com');
     expect(outbound.first['uuid'], '11111111-1111-1111-1111-111111111111');
     expect((config['inbounds'] as List).first['type'], 'tun');
+    final dns = (config['dns'] as Map)['servers'] as List;
+    expect(dns.first['type'], 'udp');
+    expect(dns.first['server'], '1.1.1.1');
+    expect(dns.first.containsKey('address'), isFalse);
   });
 
   test('parses Trojan share link', () {
@@ -60,6 +64,22 @@ Reserved = 1, 2, 3
     expect(endpoint['private_key'], 'private-key');
     expect((endpoint['peers'] as List).first['reserved'], [1, 2, 3]);
     expect(config['route']['final'], 'warp');
+  });
+
+  test('uses fallback DNS when WireGuard DNS is empty', () {
+    const wireguard = '''
+[Interface]
+PrivateKey = private-key
+Address = 172.16.0.2/32
+DNS =
+[Peer]
+PublicKey = cloudflare-public-key
+Endpoint = engage.cloudflareclient.com:2408
+''';
+    final config = importer.parse(wireguard);
+    final dns = (config['dns'] as Map)['servers'] as List;
+    expect(dns.first['type'], 'udp');
+    expect(dns.first['server'], '1.1.1.1');
   });
 
   test('keeps full sing-box JSON profiles', () {
