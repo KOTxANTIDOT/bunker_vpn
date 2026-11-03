@@ -28,7 +28,14 @@ class SubscriptionService {
         throw HttpException('Сервер подписки ответил HTTP ${response.statusCode}.');
       }
       final body = await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 25));
-      final links = _decodeLines(body);
+      final decodedBody = _decodeBody(body);
+      if (decodedBody is Map<String, dynamic>) {
+        return SubscriptionResult(
+          profiles: [_importer.parse(jsonEncode(decodedBody))],
+          sourceUrl: uri.toString(),
+        );
+      }
+      final links = _decodeLines(decodedBody as String);
       final profiles = <Map<String, dynamic>>[];
       final failures = <String>[];
       for (final link in links) {
@@ -46,6 +53,32 @@ class SubscriptionService {
     } finally {
       client.close(force: true);
     }
+  }
+
+  Object _decodeBody(String body) {
+    var content = body.replaceFirst('\uFEFF', '').trim();
+    if (content.isEmpty) throw const FormatException('Подписка пустая.');
+    if (!content.contains('://') && !content.startsWith('{')) {
+      try {
+        content = utf8.decode(base64.decode(base64.normalize(
+          content.replaceAll(RegExp(r'\s+'), ''),
+        )));
+      } on FormatException {
+        // Continue as plain text if it is not a base64 subscription.
+      }
+    }
+    if (content.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(content);
+        if (decoded is Map<String, dynamic> &&
+            (decoded.containsKey('outbounds') || decoded.containsKey('endpoints'))) {
+          return decoded;
+        }
+      } on FormatException {
+        // It may be a line-oriented subscription containing JSON fragments.
+      }
+    }
+    return content;
   }
 
   List<String> _decodeLines(String body) {
