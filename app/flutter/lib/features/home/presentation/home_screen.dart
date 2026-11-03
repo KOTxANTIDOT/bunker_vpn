@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../../platform/vpn_platform.dart';
@@ -56,6 +58,75 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _bridgeMessage = 'Ошибка VPN-службы: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _changingVpnService = false);
+      }
+    }
+  }
+
+  Future<void> _importAndStartProfile() async {
+    final controller = TextEditingController();
+    final configJson = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Импорт sing-box JSON'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: TextField(
+            controller: controller,
+            minLines: 5,
+            maxLines: 10,
+            keyboardType: TextInputType.multiline,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: const InputDecoration(
+              hintText: 'Вставь сюда полный sing-box JSON',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('ОТМЕНА'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('ПОДКЛЮЧИТЬ'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (configJson == null || !mounted) return;
+
+    setState(() {
+      _changingVpnService = true;
+      _bridgeMessage = null;
+    });
+    try {
+      final decoded = jsonDecode(configJson);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('В корне JSON должен быть объект.');
+      }
+      final granted = await _platform.requestVpnPermission();
+      if (!granted) {
+        throw Exception('Разрешение Android VPN не выдано.');
+      }
+      await _platform.startProfile(configJson);
+      if (!mounted) return;
+      setState(() {
+        _vpnServiceRunning = true;
+        _bridgeMessage =
+            'Профиль передан sing-box. Проверяем запуск туннеля; '
+            'это ещё не подтверждение защищённого соединения.';
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _bridgeMessage = 'Не удалось запустить профиль: $error';
       });
     } finally {
       if (mounted) {
@@ -187,6 +258,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _changingVpnService ? null : _importAndStartProfile,
+                icon: const Icon(Icons.data_object_outlined),
+                label: const Text('ВСТАВИТЬ JSON-ПРОФИЛЬ'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BunkerColors.accent,
+                  side: const BorderSide(color: BunkerColors.accent),
+                  minimumSize: const Size(0, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 18),
