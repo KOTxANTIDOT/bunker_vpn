@@ -71,6 +71,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<List<({String name, String configJson})>> _validateSubscriptionProfiles(
+    SubscriptionResult result,
+  ) async {
+    final entries = <({String name, String configJson})>[];
+    for (final profile in result.profiles) {
+      final config = jsonEncode(profile);
+      await _platform.validateProfile(config);
+      final isWireGuard = (profile['endpoints'] as List?)?.any(
+            (item) => item is Map && item['type'] == 'wireguard',
+          ) ==
+          true;
+      final outbounds = profile['outbounds'] as List? ?? const [];
+      final outbound = outbounds.isEmpty
+          ? const <String, dynamic>{}
+          : outbounds.firstWhere(
+              (item) => item is Map && item['tag'] == 'proxy',
+              orElse: () => outbounds.first,
+            ) as Map;
+      final name = isWireGuard
+          ? 'Cloudflare WARP'
+          : '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+      entries.add((name: name, configJson: config));
+    }
+    if (entries.isEmpty) {
+      throw const FormatException('Подписка не содержит пригодных профилей.');
+    }
+    return entries;
+  }
+
   Future<void> _importSubscription() async {
     final url = await showDialog<String>(
       context: context,
@@ -79,37 +108,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (url == null || !mounted) return;
     setState(() {
       _changingVpnService = true;
-      _bridgeMessage = 'Загружаю подписку...';
+      _bridgeMessage = 'Загружаю и проверяю подписку...';
     });
     try {
       final result = await _subscriptionService.fetch(url);
-      var imported = 0;
-      for (final profile in result.profiles) {
-        final config = jsonEncode(profile);
-        await _platform.validateProfile(config);
-        final outbounds = profile['outbounds'] as List? ?? const [];
-        if (outbounds.isEmpty) continue;
-        final outbound = outbounds.firstWhere(
-          (item) => item is Map && item['tag'] == 'proxy',
-          orElse: () => outbounds.first,
-        ) as Map;
-        final name = (profile['endpoints'] as List?)?.any(
-                (item) => item is Map && item['type'] == 'wireguard',
-              ) == true
-          ? 'Cloudflare WARP'
-          : '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
-        await _profileStore.save(name, config);
-        imported++;
-      }
-      await _profileStore.saveSubscriptionUrl(result.sourceUrl);
+      final entries = await _validateSubscriptionProfiles(result);
+      await _profileStore.replaceSubscriptionProfiles(result.sourceUrl, entries);
       await _loadSavedProfiles();
       if (!mounted) return;
       setState(() {
-        _bridgeMessage = 'Подписка обновлена: добавлено профилей — $imported. Для подключения выбери сервер в списке.';
+        _bridgeMessage = 'Подписка добавлена: серверов — ${entries.length}.';
       });
     } on Exception catch (error) {
       if (!mounted) return;
-      setState(() => _bridgeMessage = 'Не удалось обновить подписку: $error');
+      setState(() => _bridgeMessage = 'Не удалось импортировать подписку: $error');
     } finally {
       if (mounted) setState(() => _changingVpnService = false);
     }
@@ -119,31 +131,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_changingVpnService) return;
     setState(() {
       _changingVpnService = true;
-      _bridgeMessage = 'Обновляю подписку...';
+      _bridgeMessage = 'Обновляю и проверяю подписку...';
     });
     try {
       final result = await _subscriptionService.fetch(url);
-      var imported = 0;
-      for (final profile in result.profiles) {
-        final config = jsonEncode(profile);
-        await _platform.validateProfile(config);
-        final outbounds = profile['outbounds'] as List? ?? const [];
-        if (outbounds.isEmpty) continue;
-        final outbound = outbounds.firstWhere(
-          (item) => item is Map && item['tag'] == 'proxy',
-          orElse: () => outbounds.first,
-        ) as Map;
-        final name = (profile['endpoints'] as List?)?.any(
-                (item) => item is Map && item['type'] == 'wireguard',
-              ) == true
-          ? 'Cloudflare WARP'
-          : '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
-        await _profileStore.save(name, config);
-        imported++;
-      }
+      final entries = await _validateSubscriptionProfiles(result);
+      await _profileStore.replaceSubscriptionProfiles(result.sourceUrl, entries);
       await _loadSavedProfiles();
       if (!mounted) return;
-      setState(() => _bridgeMessage = 'Подписка обновлена: добавлено профилей — $imported.');
+      setState(() => _bridgeMessage =
+          'Подписка обновлена: актуальных серверов — ${entries.length}.');
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() => _bridgeMessage = 'Ошибка обновления подписки: $error');
