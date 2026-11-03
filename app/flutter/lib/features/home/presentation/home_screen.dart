@@ -84,39 +84,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _importAndStartProfile() async {
-    final controller = TextEditingController();
     final configJson = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Импорт sing-box JSON'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: TextField(
-            controller: controller,
-            minLines: 5,
-            maxLines: 10,
-            keyboardType: TextInputType.multiline,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: const InputDecoration(
-              hintText: 'Вставь сюда полный sing-box JSON',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('ОТМЕНА'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('ПОДКЛЮЧИТЬ'),
-          ),
-        ],
-      ),
+      builder: (_) => const _ProfileImportDialog(),
     );
-    controller.dispose();
     if (configJson == null || !mounted) return;
 
     setState(() {
@@ -404,6 +375,62 @@ class _InfoTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _ProfileImportDialog extends StatefulWidget {
+  const _ProfileImportDialog();
+
+  @override
+  State<_ProfileImportDialog> createState() => _ProfileImportDialogState();
+}
+
+class _ProfileImportDialogState extends State<_ProfileImportDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Импорт sing-box JSON'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: TextField(
+          controller: _controller,
+          minLines: 5,
+          maxLines: 10,
+          keyboardType: TextInputType.multiline,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: const InputDecoration(
+            hintText: 'Вставь сюда полный sing-box JSON',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('ОТМЕНА'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('ПОДКЛЮЧИТЬ'),
+        ),
+      ],
     );
   }
 }
