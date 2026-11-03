@@ -50,6 +50,16 @@ class VpnPlatform {
     await _channel.invokeMethod<String>('startVpnService');
   }
 
+  Future<void> startProfile(String configJson) async {
+    if (configJson.trim().isEmpty) {
+      throw ArgumentError.value(configJson, 'configJson', 'Profile JSON is empty');
+    }
+    await _channel.invokeMethod<String>(
+      'startProfile',
+      <String, Object>{'configJson': configJson},
+    );
+  }
+
   Future<void> stopVpnService() async {
     await _channel.invokeMethod<String>('stopVpnService');
   }
