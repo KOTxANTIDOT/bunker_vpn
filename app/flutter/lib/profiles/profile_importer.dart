@@ -11,6 +11,9 @@ class ProfileImporter {
     if (value.isEmpty) {
       throw const FormatException('Пустая ссылка или профиль.');
     }
+    if (value.startsWith('[Interface]') || value.contains('\n[Interface]')) {
+      return _wireGuard(value);
+    }
     if (value.startsWith('{')) {
       final decoded = jsonDecode(value);
       if (decoded is! Map<String, dynamic>) {
@@ -41,6 +44,108 @@ class ProfileImporter {
       default:
         throw FormatException('Пока не поддерживается протокол: ${uri.scheme}');
     }
+  }
+
+  Map<String, dynamic> _wireGuard(String text) {
+    final sections = <String, Map<String, String>>{};
+    String? current;
+    for (final rawLine in text.split(RegExp(r'\\r?\\n'))) {
+      final line = rawLine.split('#').first.trim();
+      if (line.isEmpty) continue;
+      if (line.startsWith('[') && line.endsWith(']')) {
+        current = line.substring(1, line.length - 1).toLowerCase();
+        sections[current] = <String, String>{};
+        continue;
+      }
+      final separator = line.indexOf('=');
+      if (current == null || separator < 1) continue;
+      sections[current]![line.substring(0, separator).trim().toLowerCase()] =
+          line.substring(separator + 1).trim();
+    }
+    final iface = sections['interface'];
+    final peer = sections['peer'];
+    if (iface == null || peer == null) {
+      throw const FormatException('WireGuard/WARP: нужны секции [Interface] и [Peer].');
+    }
+    final privateKey = iface['privatekey'] ?? '';
+    final publicKey = peer['publickey'] ?? '';
+    final endpoint = peer['endpoint'] ?? '';
+    final address = (iface['address'] ?? '')
+        .split(',')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    final allowedIps = (peer['allowedips'] ?? '0.0.0.0/0, ::/0')
+        .split(',')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    final endpointUri = Uri.parse('udp://$endpoint');
+    if (privateKey.isEmpty || publicKey.isEmpty || endpointUri.host.isEmpty ||
+        endpointUri.port == 0 || address.isEmpty) {
+      throw const FormatException('WireGuard/WARP: не хватает ключей, адреса или Endpoint.');
+    }
+    final reserved = (peer['reserved'] ?? '')
+        .split(',')
+        .map((value) => int.tryParse(value.trim()))
+        .whereType<int>()
+        .toList();
+    final wireguardEndpoint = <String, dynamic>{
+      'type': 'wireguard',
+      'tag': 'warp',
+      'mtu': int.tryParse(iface['mtu'] ?? '') ?? 1280,
+      'address': address,
+      'private_key': privateKey,
+      'peers': [
+        {
+          'address': endpointUri.host,
+          'port': endpointUri.port,
+          'public_key': publicKey,
+          'allowed_ips': allowedIps,
+          'persistent_keepalive_interval':
+              int.tryParse(peer['persistentkeepalive'] ?? '25') ?? 25,
+          if (reserved.length == 3) 'reserved': reserved,
+        }
+      ],
+    };
+    final dns = (iface['dns'] ?? '1.1.1.1')
+        .split(',')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    return {
+      'log': {'level': 'warn'},
+      'dns': {
+        'servers': [
+          {'tag': 'dns-remote', 'address': dns.first, 'detour': 'warp'}
+        ],
+        'final': 'dns-remote'
+      },
+      'inbounds': [
+        {
+          'type': 'tun',
+          'tag': 'tun-in',
+          'interface_name': 'bunker0',
+          'address': ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
+          'mtu': 1400,
+          'auto_route': true,
+          'strict_route': true,
+          'stack': 'mixed'
+        }
+      ],
+      'endpoints': [wireguardEndpoint],
+      'outbounds': [
+        {'type': 'direct', 'tag': 'direct'},
+        {'type': 'dns', 'tag': 'dns-out'}
+      ],
+      'route': {
+        'auto_detect_interface': true,
+        'final': 'warp',
+        'rules': [
+          {'protocol': 'dns', 'outbound': 'dns-out'}
+        ]
+      }
+    };
   }
 
   Map<String, dynamic> _base(Map<String, dynamic> outbound) => {
