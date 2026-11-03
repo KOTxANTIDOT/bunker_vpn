@@ -24,6 +24,35 @@ void main() {
     ]);
   });
 
+  test('enables default uTLS fingerprint for VLESS Reality', () {
+    final config = importer.parse(
+      'vless://11111111-1111-1111-1111-111111111111@example.com:443'
+      '?security=reality&sni=example.com&pbk=public-key&sid=abcd',
+    );
+    final outbound = (config['outbounds'] as List).first;
+    final tls = outbound['tls'] as Map;
+    expect(tls['reality']['enabled'], isTrue);
+    expect(tls['utls'], {'enabled': true, 'fingerprint': 'chrome'});
+  });
+
+  test('uses explicit uTLS fingerprint for VLESS Reality', () {
+    final config = importer.parse(
+      'vless://11111111-1111-1111-1111-111111111111@example.com:443'
+      '?security=reality&sni=example.com&pbk=public-key&sid=abcd&fp=firefox',
+    );
+    final outbound = (config['outbounds'] as List).first;
+    expect(outbound['tls']['utls'], {'enabled': true, 'fingerprint': 'firefox'});
+  });
+
+  test('rejects VLESS Reality link without public key', () {
+    expect(
+      () => importer.parse(
+        'vless://11111111-1111-1111-1111-111111111111@example.com:443?security=reality',
+      ),
+      throwsFormatException,
+    );
+  });
+
   test('parses Trojan share link', () {
     final config = importer.parse('trojan://secret@example.com:443?sni=example.com');
     final outbound = (config['outbounds'] as List).first;
