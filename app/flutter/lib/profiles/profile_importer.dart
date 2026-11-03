@@ -101,6 +101,8 @@ class ProfileImporter {
           'address': endpointUri.host,
           'port': endpointUri.port,
           'public_key': publicKey,
+          if ((peer['presharedkey'] ?? '').isNotEmpty)
+            'pre_shared_key': peer['presharedkey'],
           'allowed_ips': allowedIps,
           'persistent_keepalive_interval':
               int.tryParse(peer['persistentkeepalive'] ?? '25') ?? 25,
