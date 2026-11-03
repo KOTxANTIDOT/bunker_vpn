@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../platform/vpn_platform.dart';
 import '../../../profiles/profile_importer.dart';
+import '../../../profiles/profile_store.dart';
 import '../../../theme/bunker_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,6 +17,59 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final VpnPlatform _platform = VpnPlatform();
   final ProfileImporter _profileImporter = const ProfileImporter();
+  final ProfileStore _profileStore = ProfileStore();
+  List<StoredProfile> _savedProfiles = <StoredProfile>[];
+  String? _activeProfileId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedProfiles();
+  }
+
+  Future<void> _loadSavedProfiles() async {
+    final profiles = await _profileStore.load();
+    final activeId = await _profileStore.activeId();
+    if (!mounted) return;
+    setState(() {
+      _savedProfiles = profiles;
+      _activeProfileId = activeId;
+    });
+  }
+
+  Future<void> _startStoredProfile(StoredProfile stored) async {
+    if (_changingVpnService) return;
+    setState(() {
+      _changingVpnService = true;
+      _bridgeMessage = null;
+    });
+    try {
+      await _profileStore.setActive(stored.id);
+      await _platform.validateProfile(stored.configJson);
+      final granted = await _platform.requestVpnPermission();
+      if (!granted) throw Exception('Разрешение Android VPN не выдано.');
+      await _platform.startProfile(stored.configJson);
+      final state = await _waitForServiceState({'CONNECTED'});
+      if (!mounted) return;
+      setState(() {
+        _activeProfileId = stored.id;
+        _vpnServiceRunning = state == 'CONNECTED';
+        _bridgeMessage = state == 'CONNECTED'
+            ? 'Туннель создан для профиля «${stored.name}». Проверяем трафик отдельно.'
+            : 'Состояние запуска профиля: $state';
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _bridgeMessage = 'Не удалось запустить профиль: $error');
+    } finally {
+      if (mounted) setState(() => _changingVpnService = false);
+    }
+  }
+
+  Future<void> _deleteStoredProfile(StoredProfile stored) async {
+    await _profileStore.delete(stored.id);
+    await _loadSavedProfiles();
+  }
 
   bool _checkingBridge = false;
   bool _vpnServiceRunning = false;
@@ -100,6 +154,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final profile = _profileImporter.parse(configJson);
       final normalizedConfig = jsonEncode(profile);
       await _platform.validateProfile(normalizedConfig);
+      final outbounds = profile['outbounds'] as List;
+      final outbound = outbounds.firstWhere(
+        (item) => item is Map && item['tag'] == 'proxy',
+        orElse: () => outbounds.first,
+      ) as Map;
+      final name = '${outbound['type'] ?? 'VPN'} · ${outbound['server'] ?? 'сервер'}';
+      await _profileStore.save(name, normalizedConfig);
+      await _loadSavedProfiles();
       final granted = await _platform.requestVpnPermission();
       if (!granted) {
         throw Exception('Разрешение Android VPN не выдано.');
@@ -270,6 +332,52 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 18),
+            const Text(
+              'СОХРАНЁННЫЕ СЕРВЕРЫ',
+              style: TextStyle(
+                color: BunkerColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_savedProfiles.isEmpty)
+              const Text(
+                'Пока нет сохранённых профилей. Импортируй ссылку — сервер появится здесь.',
+                style: TextStyle(color: BunkerColors.textMuted),
+              )
+            else
+              ..._savedProfiles.map(
+                (profile) => Card(
+                  color: BunkerColors.surface,
+                  child: ListTile(
+                    leading: Icon(
+                      profile.id == _activeProfileId
+                          ? Icons.radio_button_checked
+                          : Icons.dns_outlined,
+                      color: BunkerColors.accent,
+                    ),
+                    title: Text(profile.name),
+                    subtitle: Text(
+                      profile.id == _activeProfileId
+                          ? 'Выбранный профиль'
+                          : 'Сохранён на устройстве',
+                    ),
+                    onTap: _changingVpnService
+                        ? null
+                        : () => _startStoredProfile(profile),
+                    trailing: IconButton(
+                      tooltip: 'Удалить профиль',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: _changingVpnService
+                          ? null
+                          : () => _deleteStoredProfile(profile),
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 18),
             const _InfoTile(
               icon: Icons.hub_outlined,
