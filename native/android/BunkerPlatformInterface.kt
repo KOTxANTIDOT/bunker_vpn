@@ -7,6 +7,7 @@ import io.nekohasekai.libbox.InterfaceUpdateListener
 import io.nekohasekai.libbox.LocalDNSTransport
 import io.nekohasekai.libbox.NeighborUpdateListener
 import io.nekohasekai.libbox.NetworkInterfaceIterator
+import io.nekohasekai.libbox.Notification
 import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.PlatformUser
 import io.nekohasekai.libbox.ShellSession
@@ -57,6 +58,12 @@ internal class BunkerPlatformInterface(
     override fun startNeighborMonitor(listener: NeighborUpdateListener?) = Unit
 
     override fun closeNeighborMonitor(listener: NeighborUpdateListener?) = Unit
+
+    override fun cancelNotification(identifier: String, typeID: Int) = Unit
+
+    override fun sendNotification(notification: Notification) = Unit
+
+    override fun useProcFS(): Boolean = false
 
     override fun usePlatformShell(): Boolean = false
 
