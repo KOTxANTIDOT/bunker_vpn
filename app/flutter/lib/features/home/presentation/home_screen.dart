@@ -47,8 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'Служба Android остановлена. VPN-трафик не запускался.';
         });
       } else {
-        await _platform.validateProfile(configJson);
-      final granted = await _platform.requestVpnPermission();
+        final granted = await _platform.requestVpnPermission();
         if (!granted) {
           if (!mounted) return;
           setState(() {
@@ -129,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (decoded is! Map<String, dynamic>) {
         throw const FormatException('В корне JSON должен быть объект.');
       }
+      await _platform.validateProfile(configJson);
       final granted = await _platform.requestVpnPermission();
       if (!granted) {
         throw Exception('Разрешение Android VPN не выдано.');
